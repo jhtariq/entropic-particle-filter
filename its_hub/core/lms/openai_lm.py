@@ -170,11 +170,15 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
         tools: list[dict] | None = None,
         tool_choice: str | dict | None = None,
         response_format: dict | None = None,
+        logprobs: bool = False,
+        top_logprobs: int | None = None,
     ) -> dict:
         # helper method to prepare request data for both sync and async methods
-        # Convert dict messages to Message objects if needed
+        # Convert dict messages to Message objects if needed. Use from_dict so
+        # response dicts carrying private keys (_logprobs, _raw_choice) can be
+        # appended to a conversation and sent back without a TypeError.
         messages = [
-            msg if isinstance(msg, ChatMessage) else ChatMessage(**msg)
+            msg if isinstance(msg, ChatMessage) else ChatMessage.from_dict(msg)
             for msg in messages
         ]
 
@@ -236,6 +240,12 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
         if response_format is not None:
             request_data["response_format"] = response_format
 
+        # request token logprobs (used to derive self-certainty particle weights)
+        if logprobs:
+            request_data["logprobs"] = True
+            if top_logprobs is not None:
+                request_data["top_logprobs"] = top_logprobs
+
         return request_data
 
     async def _agenerate(
@@ -248,6 +258,8 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
         tools: list[dict] | None = None,
         tool_choice: str | dict | None = None,
         response_format: dict | None = None,
+        logprobs: bool = False,
+        top_logprobs: int | None = None,
     ) -> list[dict]:
         # limit concurrency to max_concurrency using a semaphore
         semaphore = asyncio.Semaphore(
@@ -279,6 +291,8 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
                         tools,
                         tool_choice,
                         response_format,
+                        logprobs,
+                        top_logprobs,
                     )
 
                     async with session.post(
@@ -295,6 +309,8 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
                         response_json = await response.json()
                         choice = response_json["choices"][0]
                         message = dict(choice["message"])
+                        if choice.get("logprobs") is not None:
+                            message["_logprobs"] = choice["logprobs"]
                         if self.include_raw_choices:
                             message["_raw_choice"] = {
                                 **choice,
@@ -346,21 +362,17 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
         tools: list[dict] | None = None,
         tool_choice: str | dict | None = None,
         response_format: dict | None = None,
+        logprobs: bool = False,
+        top_logprobs: int | None = None,
     ) -> dict | list[dict]:
         """
         generate response(s) asynchronously
 
-        FIXME: Batch processing has been moved to orchestrator. This function will be fully
-        replaced by agenerate_single once all algorithms have been moved to using orchestrator.
+        This is the batched generation path used by StepGeneration (and thus by
+        ParticleFiltering / EntropicParticleFiltering) — one request per particle
+        per step. agenerate_single() + an orchestrator is the alternative for
+        callers that manage their own batching/concurrency.
         """
-
-        warnings.warn(
-            "agenerate() is deprecated and will be removed in a future version. "
-            "Use agenerate_single() with the orchestrator instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
         is_single = not isinstance(messages_or_messages_lst[0], list)
         messages_lst = (
             [messages_or_messages_lst] if is_single else messages_or_messages_lst
@@ -374,6 +386,8 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
             tools,
             tool_choice,
             response_format,
+            logprobs,
+            top_logprobs,
         )
         return response_or_responses[0] if is_single else response_or_responses
 
@@ -387,6 +401,8 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
         tools: list[dict] | None = None,
         tool_choice: str | dict | None = None,
         response_format: dict | None = None,
+        logprobs: bool = False,
+        top_logprobs: int | None = None,
         loop: asyncio.AbstractEventLoop | None = None,
     ) -> dict:
         # Fallback to the current event loop
@@ -414,6 +430,8 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
                 tools,
                 tool_choice,
                 response_format,
+                logprobs,
+                top_logprobs,
             )
 
             async with session.post(
@@ -430,6 +448,8 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
                 response_json = await response.json()
                 choice = response_json["choices"][0]
                 message = dict(choice["message"])
+                if choice.get("logprobs") is not None:
+                    message["_logprobs"] = choice["logprobs"]
                 if self.include_raw_choices:
                     message["_raw_choice"] = {
                         **choice,

@@ -1,8 +1,10 @@
-import asyncio
 import logging
 
 from its_hub.api import AbstractLanguageModel, ChatMessage
-from its_hub.core.utils import extract_content_from_lm_response
+from its_hub.core.utils import (
+    extract_content_from_lm_response,
+    summarize_step_logprobs,
+)
 
 
 def rstrip_iff_entire(s: str, subs: str) -> str:
@@ -110,19 +112,46 @@ class StepGeneration:
         steps_so_far: list[str] | list[list[str]] | None = None,
         tools: list[dict] | None = None,
         tool_choice: str | dict | None = None,
+        return_logprobs: bool = False,
+        top_logprobs: int | None = None,
+        base_messages: list[ChatMessage] | None = None,
     ) -> tuple[str, bool] | list[tuple[str, bool]]:
-        """generate next step(s) asynchronously"""
+        """generate next step(s) asynchronously.
+
+        If ``return_logprobs`` is True, requests token logprobs from the LM and
+        returns an extra per-step summary dict (from ``summarize_step_logprobs``)
+        appended to each tuple: ``(next_step, is_stopped, logprob_summary)``.
+        This powers self-certainty particle weights (no separate reward model).
+
+        If ``base_messages`` is provided, it is used verbatim as the conversation
+        base (e.g. a user turn with audio content) instead of building a text-only
+        ``ChatMessage(role="user", content=<prompt string>)``. The reasoning steps
+        so far are appended as a trailing assistant turn the model continues. The
+        same ``base_messages`` is broadcast across all prompts in the batch path
+        (all particles share the same question/audio). When ``base_messages`` is
+        None the behavior is identical to the plain-text prompt path.
+        """
         if steps_so_far is None:
             steps_so_far = []
+        # Only forward logprob kwargs when requested, so LMs that predate logprob
+        # support (and existing mocks/gateways) keep working unchanged.
+        logprob_kwargs: dict = {}
+        if return_logprobs:
+            logprob_kwargs["logprobs"] = True
+            if top_logprobs is not None:
+                logprob_kwargs["top_logprobs"] = top_logprobs
         is_single_prompt = isinstance(prompt_or_prompts, str)
         if is_single_prompt:
             prompt = prompt_or_prompts
             current_step = len(steps_so_far) + 1
             logging.info("Generating step %s/%s", current_step, self.max_steps)
 
-            messages = [
-                ChatMessage(role="user", content=prompt),
-            ]
+            if base_messages is not None:
+                messages = list(
+                    base_messages
+                )  # shallow copy; don't mutate caller's list
+            else:
+                messages = [ChatMessage(role="user", content=prompt)]
             if steps_so_far:
                 messages.append(
                     ChatMessage(
@@ -137,11 +166,15 @@ class StepGeneration:
                 include_stop_str_in_output=self.include_stop_str_in_output,
                 tools=tools,
                 tool_choice=tool_choice,
+                **logprob_kwargs,
             )
             next_step = extract_content_from_lm_response(next_step_response)
             is_stopped = len(steps_so_far) >= self.max_steps
             if self.stop_token:
                 is_stopped = is_stopped or self.stop_token in next_step
+            if return_logprobs:
+                summary = summarize_step_logprobs(next_step_response.get("_logprobs"))
+                return next_step, is_stopped, summary
             return next_step, is_stopped
         else:
             prompts = prompt_or_prompts
@@ -155,9 +188,11 @@ class StepGeneration:
 
             messages_lst = []
             for prompt, steps_so_far_per_prompt in zip(prompts, steps_so_far):
-                messages = [
-                    ChatMessage(role="user", content=prompt),
-                ]
+                if base_messages is not None:
+                    # broadcast the same base (question + audio) to every particle
+                    messages = list(base_messages)
+                else:
+                    messages = [ChatMessage(role="user", content=prompt)]
                 if steps_so_far_per_prompt:
                     messages.append(
                         ChatMessage(
@@ -174,6 +209,7 @@ class StepGeneration:
                 include_stop_str_in_output=self.include_stop_str_in_output,
                 tools=tools,
                 tool_choice=tool_choice,
+                **logprob_kwargs,
             )
             next_steps = [
                 extract_content_from_lm_response(r) for r in next_steps_responses
@@ -187,17 +223,10 @@ class StepGeneration:
                     is_stopped_per_prompt or self.stop_token in next_step
                     for is_stopped_per_prompt, next_step in zip(is_stopped, next_steps)
                 ]
+            if return_logprobs:
+                summaries = [
+                    summarize_step_logprobs(r.get("_logprobs"))
+                    for r in next_steps_responses
+                ]
+                return list(zip(next_steps, is_stopped, summaries))
             return list(zip(next_steps, is_stopped))
-
-    def forward(
-        self,
-        lm: AbstractLanguageModel,
-        prompt_or_prompts: str | list[str],
-        steps_so_far: list[str] | list[list[str]] | None = None,
-        tools: list[dict] | None = None,
-        tool_choice: str | dict | None = None,
-    ) -> tuple[str, bool] | list[tuple[str, bool]]:
-        """generate next step(s) synchronously"""
-        return asyncio.run(
-            self.aforward(lm, prompt_or_prompts, steps_so_far, tools, tool_choice)
-        )
