@@ -21,6 +21,9 @@ MMAU_MCQ_SYSTEM_PROMPT = (
 _SYS = "You are an expert audio analyst. Listen to the audio carefully."
 
 # CoT-elicitation methods compared in cot_compare; 2/4/7 are the ablation finalists.
+# 10/11 are Mellow-native formats (Run 17): tiny ALMs trained on plain-text ReasonAQA
+# prompts ("question? a) x b) y ...", no chat template) ignore the lettered
+# "Options:\nA. ..." layout entirely, so these mirror the training format instead.
 METHODS = {
     1: "assistant-prefill CoT",
     2: "zero-shot CoT (user trigger)",
@@ -31,7 +34,14 @@ METHODS = {
     7: "format-forcing (## Step)",
     8: "anti-shortcut (>=3 steps)",
     9: "evidence-grounded steps (boxed)",
+    10: "native inline MCQ (Mellow)",
+    11: "native describe-then-answer (Mellow)",
 }
+
+
+def format_choices_inline(choices: list[str]) -> str:
+    """Mellow's training MCQ layout: inline lowercase letters, 'a) x b) y c) z'."""
+    return " ".join(f"{LETTERS[i].lower()}) {c}" for i, c in enumerate(choices))
 
 # Method 9 system prompt (user-supplied verbatim): evidence-grounded CoT ending in a
 # \boxed{LETTER} final answer. The trailing "Question:/Options:" of the original template
@@ -132,6 +142,14 @@ def build(method: int, rec, audio_mode: str = "local-path") -> tuple[list[ChatMe
         msgs = [sysm(_SYS), user(base + "\n\nDo NOT state the answer until you have written at least 3 numbered reasoning steps grounded in the audio. Then end with 'Answer: <letter>'.")]
     elif method == 9:  # evidence-grounded steps, boxed final answer (user-supplied)
         msgs = [sysm(_EVIDENCE_GROUNDED_SYS), user(base)]
+    elif method == 10:  # Mellow-native inline MCQ: bare training format, no system turn
+        msgs = [user(f"{q} {format_choices_inline(rec.choices)}")]
+    elif method == 11:  # Mellow-native describe-then-answer (training verbs: describe/explain)
+        msgs = [user(
+            f"{q} {format_choices_inline(rec.choices)} "
+            "describe the relevant sounds in detail, then explain your reasoning, "
+            "then state the correct option."
+        )]
     else:
         raise ValueError(f"unknown method {method}")
     return msgs, seed

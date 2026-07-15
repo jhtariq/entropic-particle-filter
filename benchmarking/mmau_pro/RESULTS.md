@@ -31,7 +31,7 @@ within the Omni family but tracks
 base competence across families), and **plain majority vote beats self-certainty selection on P9 at
 every budget ≥ 8** — the selector-is-the-wall verdict extends to a third model (§16).
 
-Last updated: 2026‑07‑10.
+Last updated: 2026‑07‑14.
 
 ---
 
@@ -482,7 +482,7 @@ the 957-run's ±0.016.
 **EPF's selected accuracy does not scale with particle count past ~8; exploration (oracle) scales
 beautifully; no self-certainty signal converts it; the selector is the wall.** This is the
 strongest-n version of the honest verdict below; the next lever remains an external/independent
-selector (§20).
+selector (§21).
 
 ## 14. Run 12 — model-size ablation: Qwen2.5-Omni-**3B**, full 5,090 MCQ (P4, P5)
 
@@ -669,7 +669,136 @@ Run 11 default **P5 only** (`PROMPTS_RUN11=4,5,7,9` opts into the full grid), Ru
 grids. Output: `results/run16_hibudget/epf_full5090_bootstrap_b128.html` (a NEW file; the b1–32
 report stays untouched). Results to be appended here when the run lands.
 
-## 17. Honest verdict
+## 17. Run 17 — tiny-model regime: Mellow-v0 (167M) via a custom serving shim (P10, P11)
+
+**Why.** Fourth model, third family: Mellow (`soham97/mellow` v0 — HTSAT audio encoder →
+389-embedding prefix → SmolLM2-135M decoder; NeurIPS 2025, 167M params, MIT). The campaign's
+first *tiny* model probes the selector-vs-oracle question at the opposite end of the capability
+range. Mellow is **not vLLM-servable** (raw `.ckpt` + custom research code, no chat template),
+so this run's first deliverable is an OpenAI-compatible serving shim.
+
+**Headline caveat (read first).** Mellow's MCQ choices are only weakly coupled to the audio:
+A/B causality on 15 items flips just **3/15** answers when audio is removed (Run 15/Qwen2-Audio:
+9/15), and greedy accuracy is at parse-adjusted chance. The plumbing was verified three
+independent ways (shim greedy output token-identical to the reference code 8/8; base64 ≡
+file-path decode 6/6; free-form descriptions track clip content correctly), so this is a model
+property, not a harness bug: Mellow *describes* audio but its option-picking is text-prior
+dominated. Run 17 therefore reads as "PF/EPF dynamics in the weak-coupling regime", not a
+benchmark result.
+
+**The shim** (`benchmarking/mmau_pro/serve_mellow.py`; FastAPI + transformers, one process per
+GPU on ports 8100+i). Speaks the exact wire contract the harness sends: audio content parts
+(`file://` audio_url and base64 `input_audio`), per-token `logprobs` + `top_logprobs=20`
+(entropy signal), vLLM-style `continue_final_message` (partial assistant text is embedded and
+continued — exactly how Mellow's own loop appends generated tokens), `stop` strings, `usage`,
+OpenAI error shapes, `/v1/models` health. Generation is a KV-cache rewrite of the reference
+`_generate_batch` with true multinomial sampling (the reference loop is top-p-filter + argmax =
+effectively greedy, and exposes no logprobs). Validated **token-identical** to the reference in
+greedy fp32 on all 8 deterministic-path test items (`run17/validate_shim.py`, re-run by
+`run17/smoke.sh` on any new box). Two documented deviations: (1) clips longer than the 10 s
+window get a deterministic FIRST-10s crop — the reference samples a *random* segment, which
+would feed different audio to each PF step (and makes the reference nondeterministic on any
+stereo clip > 5 s: it flattens channels end-to-end before cropping); (2) real temperature
+sampling. Pins: ckpt `83672db0…` (v0), GitHub code `349f9b2…` (cloned; no PyPI package exists),
+SmolLM2-135M base `93efa2f…` (architecture + tokenizer only; weights come from the ckpt).
+
+**Capacity audit → subsets.** Mellow hears ≤10 s per clip (32 kHz, channels concatenated: 27%
+of items are stereo, halving their effective window); prompts are truncated to a fixed
+**129-token** window ('!'-padded, pads attended — the training operating point). Test-set MCQ:
+4,660×1 audio, 413×2, 17×3; Mellow has exactly 2 audio slots → the 17 three-audio items are
+**excluded** (ids in `run17/data/excluded_3audio_ids.txt`). Committed subsets: `test_no3a` =
+**5,073** MCQ (the grid set) and `test_le10s_flat` = **326** MCQ (all clips ≤10 s with channels
+counted concatenated — the fully-heard sanity slice; a strict subset of the former, so its
+numbers are a free offline filter). Longest-30 preflight through the shim (2×600 s clips):
+0 errors, ≤0.8 s/request. Single-audio items fill slot 2 with silence (vs duplicate:
+1/15 answers differ; silence is the cleaner semantic).
+
+**Token-window audit + mode screen.** Prompt-token overflow at 129 (SmolLM2 tokens, n=5,073):
+P9 100%, P3 99%, standard prompts 12–17%, native P10/P11 7.5%/10.3%. An "extended" shim mode
+(512-token window, no pads) was screened and **collapses the model** (near-empty outputs,
+90–100% no-prediction) — the attended pad window is part of Mellow's input distribution.
+Faithful mode is the only viable configuration; the 129-token truncation is accepted and
+documented.
+
+**Prompt screens.** Mellow ignores every letter-format instruction ("Answer: <letter>",
+`A. option` layouts) — all nine standard CoT prompts parse at 0–20% (greedy n=40, faithful).
+Two Mellow-native methods were added to `prompt.py` (Run 1b precedent): **P10** "native inline
+MCQ" (`question? a) x b) y …`, the exact ReasonAQA training format, no system turn) and
+**P11** "native describe-then-answer" (P10 + a describe/explain nudge in Mellow's training
+verbs). Greedy n=300 stratified (test_no3a):
+
+| P | acc | acc excl-1 | no-prediction | avg words | s/item |
+|---|---|---|---|---|---|
+| P2 zero-shot CoT (best standard) | 0.027 | 0.030 | 89% | 61 | 1.18 |
+| P10 native inline MCQ | **0.230** | 0.180 | 32% | 7 | 0.18 |
+| P11 native describe-then-answer | 0.197 | 0.165 | 36% | 11 | 0.21 |
+
+Parse-adjusted chance on the multi-choice mix ≈ 0.15–0.18 → **greedy Mellow is at chance**. No
+CoT is elicitable in-format: outputs are one short burst (avg 7–11 words, never a `\n\n` chunk),
+so trajectories are single-step and the grid measures **best-of-N sampling + self-certainty
+selection** — the selection-only limit of PF/EPF (the configuration the step-boundary ablations,
+§15, found is the *stronger* one anyway).
+
+**Config** (probe grid, both signals): `diversity_probe --subset test_no3a --prompts 10,11
+--signals mean_logprob,entropy --temp 0.8 --ess-threshold 0.6 --early-phase 0.7
+--stop-regex '[a-k]\)' --max-steps 6 --max-inflight 32` (b1 stage at 24). The stop-regex ends a
+trajectory at the first step containing a native answer pattern — without it, every particle is
+forced through 6 continuation rounds whose junk can flip the parsed answer. Smoke (16 items, b8,
+all 4 cells): **0 errors**; ~0.11 s/request at temp 0.8 (~6 tokens typical, ~57 tok/s
+single-request fp32 on an RTX PRO 6000).
+
+**Split execution.** Budgets **1/8/16** ran locally on the 2-GPU reference box (tables below);
+the handoff package `benchmarking/mmau_pro/run17/` (run16-style: config/lib/setup/fetch/smoke/
+one-command driver + the shim + committed subset parquets) extends to budgets **32/64/128** on a
+collaborator's GPUs, seeded with the local b1–16 rows. Results are reported for BOTH sets:
+FULL = 5,073 `test_no3a`, LE10S = the 326-item fully-heard slice.
+
+**Test phase (2026-07-14): 500-item stratified pilot + exact LE10S slice — the scaling
+pattern replicates.** Before committing to the full 5,073 items, budgets 1/8/16 ran on a
+deterministic stratified 500-item selection (category-balanced, single-audio,
+smallest-clips-first — i.e. short-biased/Mellow-friendly; ids in
+`results/run17_mellow/test500_ids.txt`) plus the complete 326-item `test_le10s_flat` slice.
+All rows live in the same resume JSONL, so the full run reuses them. **0 errors** across all
+24 cells (14 benign empty-continuation-step warnings over ~24k rows). Cells are
+selected / oracle / majority:
+
+TEST-500 (n=498 gradeable):
+| cell | b1 | b8 | b16 |
+|---|---|---|---|
+| P10 entropy | .229/.229/.229 | .295/.482/.329 | .263/.522/.333 |
+| P10 mean_logprob | .221/.221/.221 | .269/.400/.301 | .279/.476/.315 |
+| P11 entropy | .225/.225/.225 | .253/.458/.303 | .249/.538/.309 |
+| P11 mean_logprob | .217/.217/.217 | .265/.438/.297 | .235/.484/.305 |
+
+LE10S-326 (fully heard): selected flat 0.16–0.19 at every budget; oracle 0.17 → 0.33–0.40;
+parse ~0.5 (vs ~0.7 on the 500) — hearing the whole clip does NOT help; the binding
+constraint is the audio→choice coupling, not clip truncation.
+
+Takeaways (pilot-scale, ±2 pp SE): (1) **selected jumps at b8 (+3 to +7 pp over b1) then
+saturates/regresses at b16** — the same plateau, at the same budget, as Runs 10/11/12/15;
+(2) **oracle keeps climbing** (0.23 → 0.52–0.54; gap 0.24–0.29 at b16); (3) **majority vote
+beats self-certainty selection in all 8 cells** (Run 15's finding, fourth model); (4) the
+selection-only (1-chunk) regime changes none of the campaign's conclusions. Wall-clock:
+b1 5 min (with resume credit) / b8 43 min / b16 80 min for ~826 items×4 cells on the 2-GPU
+reference box.
+
+**Full grid (handoff — external GPUs): pilot approved 2026-07-14; the complete grid
+(budgets 1→128 × P10+P11 × both signals on the full 5,073 `test_no3a`) ships in
+`benchmarking/mmau_pro/run17/` for a collaborator's machine.** The pilot rows travel as a
+gzipped seed (`run17/seeds/epf_mellow_no3a.seed.jsonl.gz`, 10,762 rows) and are reused by
+the resume; one command (`run_all.sh`) completes b1/8/16 on the full set and runs the new
+b32/64/128 stages (≈110 GPU-pair-hours total at reference-box speed, ÷ GPU pairs). Final
+report: `epf_mellow_bootstrap.html` with TWO sections — FULL (5,073) and LE10S (326) —
+each plotting selected/oracle/majority for the 4 prompt×signal lines. Results to be
+appended here when the run lands.
+
+**Artifacts** (`results/run17_mellow/`): grid `run17/epf_mellow_no3a.{jsonl,csv,log}`, screens
+`screen40_faithful_*` / `screen40_ext512_*` / `greedy300_*`, smoke `smoke_b8.*`, report
+`epf_mellow_bootstrap.html`, `summary.txt`. Shim: `serve_mellow.py` (+
+`tests/test_serve_mellow.py`); package: `run17/` (README documents knobs, cost anchors, shim
+launch/health, and the artifact list to send back).
+
+## 18. Honest verdict
 
 *(Written after Run 4/testmini; §§13–16 confirm and sharpen every point at full scale, across two
 model sizes and a second model family, and under step-boundary ablations. The July-2026 summary is
@@ -684,7 +813,7 @@ TL;DR 2/3 at the top.)*
 - n=952 → ±3.3 pp CI; the #4 effect is borderline (p≈0.07), not conclusively significant.
 - `baseline` = PF at budget 1 (single self‑certainty trajectory), i.e. the same CoT prompt with no resampling.
 
-## 18. Files (`benchmarking/mmau_pro/results/`)
+## 19. Files (`benchmarking/mmau_pro/results/`)
 
 Organized **one folder per run** (see `results/README.md` for the full index); cross-run figures in
 `results/plots/`. Each run folder holds `<experiment>.jsonl` (raw, resumable), `.csv`, `.log`, plus
@@ -720,7 +849,7 @@ one-file HTML reports.
 
 Each `run_mmau` row: `{unique_id, method, arm, budget, category, length_type, correct, latency_s, error, content}`.
 
-## 19. Reproduce
+## 20. Reproduce
 
 ```bash
 # serve (Blackwell)
@@ -840,7 +969,7 @@ conda run -n epf python -m benchmarking.mmau_pro.epf_bootstrap --n 10000 \
 #   nohup bash benchmarking/mmau_pro/run16/run_all.sh > run16.log 2>&1 &
 ```
 
-## 20. Next lever
+## 21. Next lever
 
 **Run 7 ruled out the obvious self-signal fix.** We tested the answer-choice-confidence reward as a terminal
 re-rank (answer-letter confidence and option-text likelihood, with and without audio) and it does **not**

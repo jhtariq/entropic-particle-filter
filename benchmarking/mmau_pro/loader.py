@@ -12,6 +12,11 @@ SUBSET_FILES = {
     # full test set filtered to items whose clips ALL fit Qwen2-Audio's 30 s encoder
     # window (built by scripts alongside Run 15; 2,190 MCQ)
     "test_le30s": "test_le30s-00000-of-00001.parquet",
+    # Run 17 (Mellow, 2 audio slots): test minus the 17 three-audio rows (5,073 MCQ)
+    "test_no3a": "test_no3a-00000-of-00001.parquet",
+    # Run 17 sanity slice: items Mellow FULLY hears — all clips <= 10 s with channels
+    # counted concatenated, the way its wrapper ingests audio (326 MCQ, single-audio)
+    "test_le10s_flat": "test_le10s_flat-00000-of-00001.parquet",
 }
 
 

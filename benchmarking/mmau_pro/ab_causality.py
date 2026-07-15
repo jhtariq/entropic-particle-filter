@@ -14,7 +14,7 @@ import asyncio
 import click
 
 from benchmarking.mmau_pro.loader import load_mmau_mcq
-from benchmarking.mmau_pro.prompt import build_messages
+from benchmarking.mmau_pro.prompt import build, build_messages
 from benchmarking.mmau_pro.scoring import is_correct, predicted_index
 from its_hub import OpenAICompatibleLanguageModel
 from its_hub.api.types import ChatMessage
@@ -40,7 +40,9 @@ def _strip_audio(messages: list[ChatMessage]) -> list[ChatMessage]:
 @click.option("--data-root", default="/home/exx/inference-time-scaling/mmau_pro_testmini")
 @click.option("--limit", default=15)
 @click.option("--max-tokens", default=512)
-def main(endpoint, model_name, api_key, data_root, limit, max_tokens):
+@click.option("--method", default=0,
+              help="prompt builder: 0 = terse build_messages (default), else a build(method) id")
+def main(endpoint, model_name, api_key, data_root, limit, max_tokens, method):
     records = load_mmau_mcq(data_root, subset="le30s", limit=limit)
     lm = OpenAICompatibleLanguageModel(endpoint=endpoint, api_key=api_key, model_name=model_name)
 
@@ -52,7 +54,10 @@ def main(endpoint, model_name, api_key, data_root, limit, max_tokens):
         w_correct = wo_correct = changed = gradeable = 0
         try:
             for rec in records:
-                msgs = build_messages(rec, audio_mode="base64")
+                if method:
+                    msgs, _ = build(method, rec, audio_mode="base64")
+                else:
+                    msgs = build_messages(rec, audio_mode="base64")
                 with_txt = await _one(msgs)
                 without_txt = await _one(_strip_audio(msgs))
                 cw = is_correct(with_txt, rec.choices, rec.answer_index)

@@ -256,8 +256,8 @@ final CSV/report dedupe keeps the latest row per key. Two consequences you shoul
 
 **Documentation duty:** every run gets a numbered section in `benchmarking/<bench>/RESULTS.md`
 following the existing format — *why → config (exact CLI) → n/error-count → results table →
-takeaways/verdict → artifact filenames*, plus a row in the file table (§18 there) and the exact
-reproduce command (§19 there). A run that isn't written up there effectively doesn't exist.
+takeaways/verdict → artifact filenames*, plus a row in the file table (§19 there) and the exact
+reproduce command (§20 there). A run that isn't written up there effectively doesn't exist.
 
 **Bootstrap reporting** (what the stakeholder wants to see): run `epf_bootstrap.py --in
 results/<grid>.csv --out results/<grid>_bootstrap.html`. It reports, per cell × metric,

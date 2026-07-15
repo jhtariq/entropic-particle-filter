@@ -29,10 +29,17 @@ import plotly.graph_objects as go
 from benchmarking.mmau_pro.epf_report import _CSS
 
 METRICS = ["selected", "oracle", "majority"]
-PROMPT_ORDER = [4, 5, 7, 9]
+# original campaign order first (4/5/7/9 keep their colors), then the rest of
+# prompt.METHODS incl. the Run-17 Mellow-native formats (10/11)
+PROMPT_ORDER = [4, 5, 7, 9, 1, 2, 3, 6, 8, 10, 11]
 BUDGET_ORDER = [1, 8, 16, 32, 64, 128]
-NAMES = {4: "plan-and-solve", 5: "least-to-most", 7: "format-forcing", 9: "evidence-grounded"}
-PROMPT_COLORS = {4: "#1b9e77", 5: "#d95f02", 7: "#7570b3", 9: "#e7298a"}
+NAMES = {4: "plan-and-solve", 5: "least-to-most", 7: "format-forcing", 9: "evidence-grounded",
+         1: "assistant-prefill", 2: "zero-shot CoT", 3: "few-shot CoT",
+         6: "describe-then-reason", 8: "anti-shortcut",
+         10: "native inline MCQ", 11: "native describe-then-answer"}
+PROMPT_COLORS = {4: "#1b9e77", 5: "#d95f02", 7: "#7570b3", 9: "#e7298a",
+                 1: "#66a61e", 2: "#e6ab02", 3: "#a6761d", 6: "#666666",
+                 8: "#1f78b4", 10: "#b2182b", 11: "#542788"}
 SIGNAL_DASH = {"mean_logprob": "solid", "entropy": "dash"}
 SIGNAL_SYMBOL = {"mean_logprob": "circle", "entropy": "square"}
 METRIC_LABELS = {"selected": "Selected (what EPF returns)",
@@ -283,6 +290,7 @@ def build_html(sections, n_boot, sub_m):
 def compute_section(in_path, n_boot, sub_m, seed):
     """Bootstrap one grid CSV -> (stats, n_items, n_graded, checks)."""
     cells, n_items, n_graded = load_cells(in_path)
+    sub_m = min(sub_m, n_items)  # tiny rehearsal CSVs: subsample can't exceed the set
     rng = np.random.default_rng(seed)
     # shared index matrices (paired across cells): without-replacement size sub_m, with-replacement size N
     idx_sub = rng.random((n_boot, n_items)).argsort(axis=1)[:, :sub_m]   # unique per row
