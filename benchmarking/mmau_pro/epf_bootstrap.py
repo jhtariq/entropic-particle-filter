@@ -278,9 +278,12 @@ def main(in_path, out_path, n_boot, sub_m, seed):
                 "se957": float(np.std(b957)), "ci957": (float(np.percentile(b957, 2.5)), float(np.percentile(b957, 97.5))),
             }
 
-    # closed-form cross-check on a few selected-acc cells
+    # closed-form cross-check on a few selected-acc cells (skip cells absent from
+    # this CSV — e.g. single-prompt runs like Run 13's P7-only grid)
     fpc = math.sqrt((n_items - sub_m) / (n_items - 1))
-    for key in [(4, "mean_logprob", 8), (9, "entropy", 32), (5, "mean_logprob", 16)]:
+    check_keys = [k for k in [(4, "mean_logprob", 8), (9, "entropy", 32), (5, "mean_logprob", 16)]
+                  if k in stats] or list(stats)[:3]
+    for key in check_keys:
         s = stats[key]["selected"]
         p = s["point"]
         cf100 = math.sqrt(p * (1 - p) / sub_m) * fpc

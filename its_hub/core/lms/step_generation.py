@@ -53,6 +53,22 @@ class StepGeneration:
         self.include_stop_str_in_output = include_stop_str_in_output
         self.temperature_switch = temperature_switch
 
+    @staticmethod
+    def _ended_naturally(response) -> bool:
+        """True when the model ended its turn (EOS) rather than hitting the step
+        delimiter or the token cap. Relies on vLLM's ``stop_reason`` extension
+        (None => natural EOS; str/int => a stop string matched). Endpoints that
+        don't report ``stop_reason`` never trigger this path, so behavior there
+        is unchanged. Without this check, a particle whose answer is already
+        complete keeps being asked to continue until max_steps, producing empty
+        steps that carry neutral (signal-less) weights into resampling."""
+        return (
+            isinstance(response, dict)
+            and response.get("_finish_reason") == "stop"
+            and "_stop_reason" in response
+            and response["_stop_reason"] is None
+        )
+
     def _post_process(self, steps: list[str], stopped: bool = False) -> str:
         if self.include_stop_str_in_output:
             if stopped and self.stop_token is not None:
@@ -172,6 +188,7 @@ class StepGeneration:
             is_stopped = len(steps_so_far) >= self.max_steps
             if self.stop_token:
                 is_stopped = is_stopped or self.stop_token in next_step
+            is_stopped = is_stopped or self._ended_naturally(next_step_response)
             if return_logprobs:
                 summary = summarize_step_logprobs(next_step_response.get("_logprobs"))
                 return next_step, is_stopped, summary
@@ -223,6 +240,10 @@ class StepGeneration:
                     is_stopped_per_prompt or self.stop_token in next_step
                     for is_stopped_per_prompt, next_step in zip(is_stopped, next_steps)
                 ]
+            is_stopped = [
+                is_stopped_per_prompt or self._ended_naturally(r)
+                for is_stopped_per_prompt, r in zip(is_stopped, next_steps_responses)
+            ]
             if return_logprobs:
                 summaries = [
                     summarize_step_logprobs(r.get("_logprobs"))

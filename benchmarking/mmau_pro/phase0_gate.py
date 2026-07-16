@@ -59,9 +59,11 @@ async def _gate2(lm, audio_parts) -> bool:
 @click.option("--model-name", required=True)
 @click.option("--api-key", default="NO_API_KEY")
 @click.option("--data-root", default="/home/exx/inference-time-scaling/mmau_pro_testmini")
+@click.option("--subset", type=click.Choice(["full", "le30s", "test"]), default="le30s")
+@click.option("--audio-root", default=None, help="root for relative audio paths (needed for --subset test)")
 @click.option("--audio-mode", type=click.Choice(["local-path", "base64"]), default="local-path")
-def main(endpoint, model_name, api_key, data_root, audio_mode):
-    rec = load_mmau_mcq(data_root, subset="le30s", limit=1)[0]
+def main(endpoint, model_name, api_key, data_root, subset, audio_root, audio_mode):
+    rec = load_mmau_mcq(data_root, subset=subset, limit=1, audio_root=audio_root)[0]
     print(f"using audio: {[os.path.basename(p) for p in rec.audio_paths]} (mode={audio_mode})")
     audio_parts = audio_content_parts(rec.audio_paths, mode=audio_mode)
     lm = OpenAICompatibleLanguageModel(endpoint=endpoint, api_key=api_key, model_name=model_name)

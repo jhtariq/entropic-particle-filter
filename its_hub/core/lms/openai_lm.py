@@ -311,6 +311,11 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
                         message = dict(choice["message"])
                         if choice.get("logprobs") is not None:
                             message["_logprobs"] = choice["logprobs"]
+                        if "finish_reason" in choice:
+                            message["_finish_reason"] = choice["finish_reason"]
+                        if "stop_reason" in choice:
+                            # vLLM extension: None => natural EOS; str/int => stop match
+                            message["_stop_reason"] = choice["stop_reason"]
                         if self.include_raw_choices:
                             message["_raw_choice"] = {
                                 **choice,

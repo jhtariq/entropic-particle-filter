@@ -123,8 +123,13 @@ def _base_row(rec, method, signal, budget):
     }
 
 
-def build_epf(signal, temp, max_steps, ess_threshold, early_phase):
-    sg = StepGeneration(step_token="\n\n", stop_token="Answer:", max_steps=max_steps, temperature=temp)
+def build_epf(signal, temp, max_steps, ess_threshold, early_phase, tokens_per_step=None):
+    if tokens_per_step:
+        # fixed-size token chunks for models that write prose without \n\n (e.g. AF3)
+        sg = StepGeneration(step_token=None, tokens_per_step=tokens_per_step,
+                            stop_token="Answer:", max_steps=max_steps, temperature=temp)
+    else:
+        sg = StepGeneration(step_token="\n\n", stop_token="Answer:", max_steps=max_steps, temperature=temp)
     return EntropicParticleFiltering(
         sg=sg,
         resampling_method="systematic",
@@ -240,6 +245,12 @@ def build_report(rows) -> str:
 @click.option("--early-phase", default=0.7)
 @click.option("--max-steps", default=6)
 @click.option("--max-tokens-per-step", default=300)
+@click.option("--tokens-per-step", default=None, type=int,
+              help="chunk steps by token count instead of '\\n\\n' (for prose models like AF3)")
+@click.option("--think-trigger", is_flag=True, default=False,
+              help="append the AF-Think trigger sentence (modality-mapped) to the user turn")
+@click.option("--ids-file", default=None,
+              help="file with one unique_id per line; overrides --select/--limit")
 @click.option("--limit", default=100, help="# items (stratified single-audio, or first-N for --select all)")
 @click.option("--select", "select_mode", type=click.Choice(["stratified", "all"]), default="stratified",
               help="stratified = single-audio stratified to --limit; all = every MCQ (incl. multi-audio)")
@@ -248,7 +259,8 @@ def build_report(rows) -> str:
 @click.option("--csv", "csv_path", default=None)
 @click.option("--log", "log_path", default=None)
 def main(endpoints, model_name, api_key, data_root, subset, audio_root, prompts, signals,
-         budgets, temp, ess_threshold, early_phase, max_steps, max_tokens_per_step, limit,
+         budgets, temp, ess_threshold, early_phase, max_steps, max_tokens_per_step,
+         tokens_per_step, think_trigger, ids_file, limit,
          select_mode, max_inflight, jsonl_path, csv_path, log_path):
     eps = [e.strip() for e in endpoints.split(",") if e.strip()]
     methods = [int(m) for m in prompts.split(",")]
@@ -256,7 +268,15 @@ def main(endpoints, model_name, api_key, data_root, subset, audio_root, prompts,
     buds = [int(b) for b in budgets.split(",")]
 
     recs = load_mmau_mcq(data_root, subset=subset, audio_root=audio_root)
-    records = _select_all(recs, limit) if select_mode == "all" else _select_items_stratified(recs, limit)
+    if ids_file:
+        wanted = [ln.strip() for ln in open(ids_file) if ln.strip()]
+        by_id = {r.unique_id: r for r in recs}
+        missing = [w for w in wanted if w not in by_id]
+        if missing:
+            raise SystemExit(f"--ids-file: {len(missing)} ids not in {subset} pool, e.g. {missing[:3]}")
+        records = [by_id[w] for w in wanted]
+    else:
+        records = _select_all(recs, limit) if select_mode == "all" else _select_items_stratified(recs, limit)
     cat_mix = Counter(r.category for r in records)
     print(f"EPF diversity probe: prompts={methods} signals={sigs} budgets={buds} "
           f"items={len(records)} endpoints={len(eps)}", flush=True)
@@ -274,6 +294,14 @@ def main(endpoints, model_name, api_key, data_root, subset, audio_root, prompts,
         async with sem:
             try:
                 msgs, _seed = build(method, rec, audio_mode="local-path")
+                if think_trigger:
+                    cat = rec.category.lower()
+                    mod = ("music" if "music" in cat
+                           else "speech" if ("speech" in cat or "voice" in cat) else "sound")
+                    for part in msgs[-1].content:
+                        if isinstance(part, dict) and part.get("type") == "text":
+                            part["text"] += (f"\nPlease think and reason about the input {mod} "
+                                             "before you respond.")
                 res = await epf.ainfer(lm, msgs, budget, return_response_only=False)
                 row = {**_base_row(rec, method, signal, budget),
                        **compute_metrics(res, rec), "error": None}
@@ -298,7 +326,8 @@ def main(endpoints, model_name, api_key, data_root, subset, audio_root, prompts,
             for method in methods:
                 for signal in sigs:
                     for budget in buds:
-                        epf = build_epf(signal, temp, max_steps, ess_threshold, early_phase)
+                        epf = build_epf(signal, temp, max_steps, ess_threshold, early_phase,
+                                        tokens_per_step=tokens_per_step)
                         per_ep = max(1, max_inflight // budget)
                         sems = [asyncio.Semaphore(per_ep) for _ in lms]
                         todo = [r for r in records

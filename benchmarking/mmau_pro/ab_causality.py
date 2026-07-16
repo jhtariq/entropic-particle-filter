@@ -38,10 +38,12 @@ def _strip_audio(messages: list[ChatMessage]) -> list[ChatMessage]:
 @click.option("--model-name", required=True)
 @click.option("--api-key", default="NO_API_KEY")
 @click.option("--data-root", default="/home/exx/inference-time-scaling/mmau_pro_testmini")
+@click.option("--subset", type=click.Choice(["full", "le30s", "test"]), default="le30s")
+@click.option("--audio-root", default=None, help="root for relative audio paths (needed for --subset test)")
 @click.option("--limit", default=15)
 @click.option("--max-tokens", default=512)
-def main(endpoint, model_name, api_key, data_root, limit, max_tokens):
-    records = load_mmau_mcq(data_root, subset="le30s", limit=limit)
+def main(endpoint, model_name, api_key, data_root, subset, audio_root, limit, max_tokens):
+    records = load_mmau_mcq(data_root, subset=subset, limit=limit, audio_root=audio_root)
     lm = OpenAICompatibleLanguageModel(endpoint=endpoint, api_key=api_key, model_name=model_name)
 
     async def _one(messages):

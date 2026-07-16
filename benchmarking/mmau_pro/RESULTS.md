@@ -12,7 +12,7 @@ prompt‑dependent, concentrated in hard perceptual categories** (spatial audio,
 and **does not scale with budget** — consistent with self‑certainty being a weak (fluency)
 reward signal. There is **no GRPO result on MMAU‑Pro** to compare against (see caveats).
 
-Last updated: 2026‑07‑08.
+Last updated: 2026‑07‑10. (Runs 1–11: Qwen2.5‑Omni‑7B. **Runs 12–13 (§18–19): Audio Flamingo 3** — porting, adaptation sub‑analyses, and the EPF grid replication on a second model. **Run 14 (§20): Gemma 4 E2B IT** on the ≤30 s subset — in progress.)
 
 ---
 
@@ -500,6 +500,22 @@ one-file HTML reports.
 | `run10_run6_full/epf_div_bootstrap.html` | **Run 10**: bootstrap error bars (std100 + SE957) |
 | `run11_epf_full5090/epf_full5090.{jsonl,csv,log}` | **Run 11**: the grid on the FULL 5,090-MCQ test set; 162,880 rows (957-slice seeded from `run6_full.jsonl`) |
 | `run11_epf_full5090/epf_full5090_bootstrap.html` | **Run 11**: bootstrap error bars + interactive acc-vs-budget plot |
+| `run12_af3_full5090/af3_cot_screen.{jsonl,csv,log}` | **Run 12**: AF3 9-prompt chunkability screen, 40 stratified items (folder named before the scope narrowed to single-audio) |
+| `run12_af3_full5090/af3_chunk_probe100.jsonl` | **Run 12**: AF3 n=100 random chunk/sentence probe, prompts {4,5,7,9} |
+| `run12_af3_full5090/af3_param_check200.jsonl` | **Run 12**: base-AF3 200-item step-trajectory check (tok30/max8, t=0.8, b=1) |
+| `run12_af3_full5090/af3think_param_check{200,1000}.jsonl` | **Run 12**: AF3-Think(+trigger) trajectory checks, same items/config |
+| `run12_af3_full5090/af3base_cotuser_check1000.jsonl`, `af3think_notrigger_check1000.jsonl` | **Run 12**: the 2×2 weights×trigger decomposition cells (n=1000) |
+| `af3_chat_template.jinja` (this dir) | **Run 12**: multi-audio chat-template fix (one `<sound>` per clip), passed via `vllm serve --chat-template` |
+| `run12_af3_full5090/epf_p7think.{jsonl,csv,log}` | **Run 13**: the AF3-Think P7 EPF grid (stages 1+2, one resumable JSONL; 37,280 rows) |
+| `run12_af3_full5090/epf_p7think_bootstrap.html` | **Run 13**: bootstrap error bars (std100 + SE4660) |
+| `run12_af3_full5090/stage1_ids_1000.txt`, `stage2_ids_remaining.txt`, `smoke_ids_16.txt` | **Run 13**: item lists (seed-11 length-balanced 1,000; remaining 3,660 single-audio; smoke) |
+| `run14_gemma4e2b/durations_test5090.csv`, `le30s_*_ids.txt`, `probe_ids_100.txt`, `smoke_ids_16.txt` | **Run 14**: measured clip durations + the ≤30 s ids files (1,947 single + 243 multi) — `make_le30s_ids.py` |
+| `run14_gemma4e2b/probe100_t0{0,8}.*`, `step_probe_*.*`, `smoke_epf16.*` | **Run 14**: 4-prompt × 2-temp probe, step-trajectory probe (`step_probe.py`), EPF smoke |
+| `run14_gemma4e2b/epf_gemma_le30s.{jsonl,csv,log}` (+`_bootstrap.html`) | **Run 14**: the Gemma 4 E2B EPF grid at max_steps=6 (`scripts/run14_sweep.sh`); 31,152 rows |
+| `run14_gemma4e2b/epf_gemma_le30s_max12.{jsonl,csv,log}` (+`_bootstrap.html`) | **Run 14b**: max_steps=12 ablation (`scripts/run14_sweep_max12.sh`); 31,152 rows |
+| `run14_gemma4e2b/epf_gemma_le30s_max12_b64128.*` | **Run 14c** (collaborator): budgets {64,128} extension (`scripts/run14_collab_b64_128.sh`) |
+| `run15_gemma4e4b/smoke_e4b16.*`, `anchors_e4b.csv` | **Run 15**: E4B preflight artifacts (smoke + greedy anchors) |
+| `run15_gemma4e4b/epf_gemma4e4b_max12.*` | **Run 15** (collaborator): E4B full grid b1→128 (`scripts/run15_e4b_b1_128.sh`) |
 | `plots/` | cross-run figures: `acc_vs_budget.{png,html}` (Run 6), `epf_acc_vs_budget.{png,html}` (Run 10), `acc_vs_budget_combined.html`, `epf_temp_*.html` (EPF × self-consistency overlays) |
 | `smoke/mmau_smoke.jsonl` | initial 8‑item pipeline smoke |
 
@@ -594,6 +610,36 @@ done
 conda run -n epf python -m benchmarking.mmau_pro.epf_bootstrap --n 10000 \
   --in  benchmarking/mmau_pro/results/run11_epf_full5090/epf_full5090.csv \
   --out benchmarking/mmau_pro/results/run11_epf_full5090/epf_full5090_bootstrap.html
+
+# ---- Runs 12–13 (Audio Flamingo 3; see §18–19). Serving env `af3serve` =
+# vllm 0.22.1 + transformers>=5.5 (AF3 processor needs transformers 5.x; the pinned
+# epf env stays the client). Serve per GPU (0.85 util, Blackwell flags as §3 of
+# SETUP_GUIDE) — note the REQUIRED chat-template override for multi-audio and
+# VLLM_ALLOW_LONG_MAX_MODEL_LEN for the 20k window:
+HF_HOME=~/hf_cache CUDA_VISIBLE_DEVICES=<g> VLLM_USE_FLASHINFER_SAMPLER=0 \
+VLLM_ALLOW_LONG_MAX_MODEL_LEN=1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+  <af3serve>/bin/vllm serve <model> --served-model-name <name> --port 810<g> \
+  --dtype bfloat16 --max-model-len 20000 --enforce-eager --gpu-memory-utilization 0.85 \
+  --allowed-local-media-path <repo>/data --limit-mm-per-prompt '{"audio":3}' \
+  --chat-template benchmarking/mmau_pro/af3_chat_template.jinja
+# <model> = nvidia/audio-flamingo-3-hf (base, name af3) or the merged AF-Think
+# checkpoint (name af3think) — built by scratch merge script: remap think/ adapter keys
+# (old pre-5.x naming!) onto the -hf model, apply non_lora embed + 196 LoRA pairs.
+
+# Run 13: the P7×think EPF grid, budget-staged over one resumable JSONL.
+# Stage 1 = stage1_ids_1000.txt; stage 2 = stage2_ids_remaining.txt (same command).
+for B in 1 8 16 32; do INFLIGHT=64; [ "$B" -eq 1 ] && INFLIGHT=24
+  conda run -n epf python -m benchmarking.mmau_pro.diversity_probe \
+    --endpoints http://localhost:8100/v1,http://localhost:8101/v1 --model-name af3think \
+    --data-root <repo>/data/mmau_pro --subset test \
+    --prompts 7 --signals mean_logprob,entropy --budgets $B \
+    --ids-file benchmarking/mmau_pro/results/run12_af3_full5090/stage1_ids_1000.txt \
+    --temp 0.8 --ess-threshold 0.6 --early-phase 0.7 --max-steps 6 --tokens-per-step 30 \
+    --think-trigger --max-inflight $INFLIGHT \
+    --jsonl benchmarking/mmau_pro/results/run12_af3_full5090/epf_p7think.jsonl \
+    --csv   benchmarking/mmau_pro/results/run12_af3_full5090/epf_p7think.csv \
+    --log   benchmarking/mmau_pro/results/run12_af3_full5090/epf_p7think.log
+done
 ```
 
 ## 17. Next lever
@@ -621,3 +667,379 @@ oracle-but-EPF-wrong items to confirm an external signal *can* recover them (upp
 self-critique/debate pass (still self-signal, likely same ceiling, but cheap to falsify). The honest read:
 within the fixed-single-model, RL-free constraint, **inference-time scaling on MMAU-Pro is selection-limited
 and that limit is the model's own calibration** — not solvable by more particles or a cleverer self-weight.
+
+## 18. Run 12 — porting to Audio Flamingo 3: gates, adaptation, and what makes AF3 reason
+
+**Why:** replicate the Run-11 EPF grid on a second audio LM, **NVIDIA Audio Flamingo 3** (8.4B =
+Qwen2.5-7B LLM + AF-Whisper encoder). Everything below was needed to make that experiment
+*meaningful* on AF3, and several sub-results are findings in their own right. New box, same
+hardware as the reference (2× RTX PRO 6000 Blackwell); data = official `gamma-lab-umd/MMAU-Pro`
+HF dump (loader verified: 5,090 MCQ / 24 ungradeable / 0 missing audio).
+
+**Serving.** Only `nvidia/audio-flamingo-3-hf` is vLLM-loadable (the `-3`/`-3-chat` repos are
+NVILA custom code). AF3's HF processor needs **transformers ≥5** while the pinned client env
+freezes 4.57.3 → a dedicated serving env `af3serve` (vllm 0.22.1 + transformers 5.13); the `epf`
+env stays the client. Serve: bf16, `--max-model-len 20000` + `VLLM_ALLOW_LONG_MAX_MODEL_LEN=1`
+(AF3 ≈ 25 audio tok/s, 600 s clip ≈ 15k tokens; trained text window ~16k), 0.85 util, Blackwell
+flags per SETUP_GUIDE §3.
+
+**Gates (phase0 + causality): PASS.** Gate 1 (token logprobs + top20 WITH audio) and Gate 2
+(`continue_final_message` WITH audio) pass on both endpoints with real MMAU-Pro audio. A/B
+causality (15 items): **0.733 with audio vs 0.533 without, 6/15 answers changed** — AF3 hears it.
+
+**Multi-audio (excluded from Run 13 by decision).** Two independent defects found:
+1. NVIDIA's shipped chat template renders **one `<sound>` per message** regardless of clip count →
+   HTTP 500 on the 430 multi-audio MCQ. Fixed with [`af3_chat_template.jinja`](af3_chat_template.jinja)
+   (one `<sound>` per clip — the format vLLM's own AF3 code expects); verified: 2- and 3-clip
+   prompts accepted, and a 440 Hz-vs-880 Hz two-clip pitch question answered correctly.
+2. Deeper: transformers' `AudioFlamingo3Processor.validate_inputs` enforces **1 text : 1 audio**,
+   so multi-audio only works when clips are already in vLLM's LRU processor cache (fresh pairs
+   400) — unusable for a long run. Relaxing the check was verified exactly correct (joint 2-audio
+   call → 200 `<sound>` tokens = 75+125 from the known-good separate path), but we opted to run
+   **single-audio only** (4,660 MCQ) rather than patch site-packages.
+
+**Chunkability: AF3 never emits `\n\n` — the Run-11 step token has nothing to grip.** 9-prompt
+screen (40 stratified items, greedy): `avg_chunks = 1.0 for all 9 prompts`; not truncation
+(max_tokens 700, responses 30–45 words, clean EOS). AF3 writes steps *inline as prose*
+("Step 1: … Step 2: …" separated by ". "), and n=100 shows reasoning length tracks difficulty
+(open 1.1 sentences → spatial_audio 8.3; P4 wrong answers 4.3 vs correct 2.5 sentences) — the
+reasoning exists, only the delimiter differs. Prompts #2/#7/#9 collapse to ~1-word answers.
+
+**Why #7/#9 collapse — AF3 ignores the system turn (causal, both directions).** 15 items × 6
+variants, greedy: identical instruction text scores what its *placement* dictates —
+
+| variant | acc | avg words |
+|---|---:|---:|
+| P7 instructions in system (orig) | 0.87 | 1.1 |
+| P7 instructions in user | 0.73 | 1.0 (markdown format unfollowable even user-side) |
+| P9 instructions in system (orig) | 0.80 | 1.1 |
+| **P9 instructions in user** | 0.53 | **30.7** |
+| P4 instruction in user (orig) | 0.60 | 35.7 |
+| **P4 instruction in system** | **0.87** | **1.1** |
+
+Two lessons: (a) behavioral instructions must be in the **user turn** for AF3 (its MCQA-heavy SFT
+answers a bare Question/Options with a bare letter); (b) **making base AF3 reason costs ~25 pp**
+(0.87 terse vs 0.60 reasoning, same items/instruction) — CoT-as-noise on a perception task.
+
+**Step machinery adaptation (its_hub/probe changes).** Sentence-delimiter (`". "`) stepping was
+prototyped and rejected: numbered lists make single-digit "steps" (`"3"`) whose near-perfect
+logprob (**w≈+4.9**) hijacked resampling (observed full swarm collapse), plus max-steps
+truncation. **`tokens_per_step=30`** (native `StepGeneration` mode, exposed as
+`diversity_probe --tokens-per-step`) has none of these pathologies. Second fix: AF3 almost never
+emits the `"Answer:"` stop token (0–15% of trajectories), so finished particles were re-asked to
+continue until max_steps (verified: continuations come back empty) — added **EOS detection** to
+`StepGeneration` (via vLLM's `stop_reason`; `openai_lm` now carries `_finish_reason`/`_stop_reason`)
+→ particles stop at natural end-of-turn; **3.6× fewer requests**, no behavior change for endpoints
+without `stop_reason` (95-test suite unchanged).
+
+**Base-AF3 trajectory check** (200 length-balanced items, tok30/max8, t=0.8, b=1, acc counts
+unparsed-as-wrong): P4 **0.410** (16% unparsed!), P5 **0.295** (21.5%), P7 0.515, P9 **0.590** —
+reasoning prompts often end WITHOUT any extractable answer, and terse direct answering wins big.
+
+**AF-Think: the reasoning is a shipped adapter, not a prompt.** The `-hf` repo's `think/` folder =
+PEFT LoRA (r=64, α=16; 196 A/B pairs over q/k/v/o+gate/up/down × 28 layers) **plus** a required
+1.09 GB non-LoRA embed matrix, activated by a **user-turn trigger sentence** ("Please think and
+reason about the input sound/music/speech before you respond."). ⚠ The model card's own loading
+recipe **silently no-ops on transformers 5.x** — the think weights use pre-5.x key naming and the
+recipe's `strict=False` hides the mismatch. We merged manually (explicit key remap; every tensor
+verified applied) → full checkpoint served as `af3think`.
+
+**The 2×2 that decided Run 13's substrate** (same 1,000 seed-11 single-audio items, tok30/max8,
+t=0.8, b=1; acc = unparsed-as-wrong):
+
+| weights \ prompt | no trigger | + trigger |
+|---|---|---|
+| base | terse (n=200 proxies 0.52–0.59) | **0.516**, *no reasoning* (1.03 steps, 7.5 tok) |
+| think | **0.527**, terse (1.01 steps, 3.2 tok) | **0.485–0.537** by prompt, real reasoning (3.6–6.9 steps) |
+
+Per-prompt think+trigger (n=1000): P4 0.485 (4.49 steps), P5 0.484 (4.65), **P7 0.537 (3.75)**,
+P9 0.495 (6.92 steps; 54% hit the 8-step cap — P9 needs max_steps≈12). Unparsed collapses to
+0.7–3.2% (the adapter trained answer-commitment in).
+
+**Takeaways.**
+1. Reasoning requires **both** the adapter weights and the trigger — the trigger does nothing to
+   base weights (7.5 tok) and the weights change nothing without it (3.2 tok, acc unchanged).
+2. **Budget-1 accuracy is flat (~0.52±0.02) across every mode** — think-reasoning is
+   accuracy-neutral (vs actively harmful base CoT); what it buys is *structure*: multi-step,
+   answer-committing, resamplable trajectories — i.e. the substrate EPF needs.
+3. Grid decision: **think + trigger, prompt #7 only** (best think cell, most length-robust),
+   `tokens_per_step=30`, `max_steps=6` (93% of P7-think trajectories fit), single-audio.
+
+**Artifacts:** `results/run12_af3_full5090/af3_cot_screen.*`, `af3_chunk_probe100.jsonl`,
+`af3_param_check200.jsonl`, `af3think_param_check{200,1000}.jsonl`,
+`af3base_cotuser_check1000.jsonl`, `af3think_notrigger_check1000.jsonl`;
+`af3_chat_template.jinja`; harness changes: `diversity_probe`
+`--tokens-per-step/--think-trigger/--ids-file`, gate scripts `--subset/--audio-root`,
+`its_hub` EOS-stop. Merged checkpoint: `/home/tariqvrh4/af3-think-merged`.
+
+## 19. Run 13 — the EPF grid on AF3-Think (P7, single-audio MMAU-Pro)
+
+**Why:** the Run-11 question on a second model, on the only AF3 configuration where step-wise
+resampling is meaningful (Run 12). Config: **P7 + think + trigger**, `tokens_per_step=30`,
+`max_steps=6`, temp 0.8, ess 0.6 / early 0.7, systematic, style logit, signals
+{mean_logprob, entropy}, budgets {1,8,16,32}; single-audio only. Run in two ids-file stages over
+one resumable JSONL: **stage 1** = the seed-11 length-balanced 1,000 (same items as every Run-12
+probe), **stage 2** = the remaining 3,660 single-audio MCQ. Smoke (16 items, b8): 0 errors,
+0.87 s/item.
+
+**Full run: 37,280 EPF rows, 0 errors, ~10 h wall on both GPUs** (stage 1 4.4 h + stage 2 5.6 h;
+stage-2 s/item ≈ half of stage 1's — the seed-11 sample was deliberately ultra-long-heavy).
+Stage-1 cell s/item (2 GPUs): b1 0.28 / b8 1.08 / b16 2.16 / b32 4.4 — linear in budget, on the
+Qwen anchors (§9 of SETUP_GUIDE); natural-mix stage-2: 0.15 / 0.40 / 0.75 / 1.4.
+
+**FULL single-audio set — n=4,638 gradeable/cell, 95% CI ≈ ±1.4 pp:**
+
+| signal | b1 | b8 | b16 | b32 | oracle@32 | majority@32 | gap@32 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| mean_logprob | 0.549 | 0.573 | **0.576** | 0.569 | **0.822** | 0.588 | **+0.25** |
+| entropy | 0.560 | 0.580 | **0.582** | 0.582 | **0.843** | 0.604 | **+0.26** |
+
+distinct-answer ratio 0.98→0.06 across budgets; consensus ≈0.85; final ESS 0.79–0.87; parse
+0.98–0.99 (think-mode answer commitment survives the step machinery — resampling genuinely ran
+on multi-step trajectories, unlike anything base AF3 could offer). The n=1,000 stage-1 slice
+told the same story with numbers ~2–3 pp lower across the board (harder length mix).
+
+**Findings (full scale):**
+1. **Selected accuracy saturates by budget 8–16** at ~0.57–0.58 (+2.2–2.4 pp over the
+   single-trajectory anchor); every b8→b16→b32 step is within ±1 pp.
+2. **Oracle climbs to 0.82–0.84**; the oracle−selected gap is **+0.25/+0.26 — statistically
+   identical to Qwen's +0.26** (Run 11). Majority ≈ selected +2 pp. The two self-certainty
+   signals are equivalent (entropy ≈ +1 pp, borderline at this CI).
+3. → **The Run-11 verdict replicates cross-model**, including on a model whose reasoning was
+   explicitly trained-in via an adapter: exploration scales beautifully, no self-certainty signal
+   converts it into selected accuracy, the selector is the wall.
+
+**Caveats:** single-audio only (430 multi-audio MCQ excluded — Run 12's processor limitation);
+prompt #7 only (grid comparability to Run 11's 4-prompt mean is qualitative); AF3-Think trigger
+sentence appended to the user turn is part of the prompt definition for this run.
+
+**Bootstrap** (`epf_p7think_bootstrap.html`): a 100-question eval wobbles ±0.049 on these cells;
+the full-set numbers are precise to ±0.0073 (closed-form cross-check matches). Note:
+`epf_bootstrap.py` got a small fix so its cross-check picks cells present in the CSV
+(single-prompt grids used to KeyError).
+
+**Artifacts:** `results/run12_af3_full5090/epf_p7think.{jsonl,csv,log}`,
+`epf_p7think_bootstrap.html`, `stage{1,2}_ids*.txt`; reproduce block in §16.
+
+## 20. Run 14 — Gemma 4 E2B IT on the ≤30 s MMAU-Pro subset (IN PROGRESS)
+
+**Why:** the Run-11/13 question on a third audio LM, `google/gemma-4-E2B-it` (vLLM
+`Gemma4ForConditionalGeneration`, served from the `af3serve` env — vllm 0.22.1 +
+transformers 5.13 have native gemma4 audio support; no new env, no chat-template override:
+the native template takes a system turn and renders one `<|audio|>` per clip).
+
+**The defining constraint — 30 s audio window.** Gemma 4 E2B encodes at most
+**750 audio tokens × 40 ms = 30 s per clip** (`processor_config.json`); vLLM
+*warns and truncates* longer clips (`gemma4_mm.py`), it does not error. MMAU-Pro's
+clip p50 is ~50 s (max 600 s), so most items would be silently half-heard.
+**Decision (2026-07-10): run only items where EVERY clip ≤ 30 s** — measured with
+[`make_le30s_ids.py`](make_le30s_ids.py) from the audio headers (the `le30s` parquet
+only exists for testmini): 1,947 single-audio + 243 multi-audio = 2,190 eligible.
+**Preflight verified the truncation empirically**: 1-token generation on a 600 s clip →
+770 prompt tokens (the 750 cap + text) vs 270 for a 10 s clip; server warns, no HTTP error.
+
+**Multi-audio: DROPPED after preflight (2026-07-10) → final scope = 1,947 single-audio.**
+Unlike AF3 (whose multi-audio failure was template/processor *plumbing*), Gemma 4's
+plumbing is fine — 2- and 3-clip requests are accepted and `usage.prompt_tokens` adds up
+exactly (95 tone + 270 natural → 347 joint) — but **comprehension is unreliable**: with
+2 clips the model answers "3" to "how many clips?", describes four nonexistent clips,
+and picks the same option letter regardless of clip order (440/880 Hz pitch pairs and
+tone-vs-natural discrimination both order-insensitive). Consistent with the Gemma-3n
+lineage's single-audio-per-prompt training. Single-clip grounding is solid (A/B causality
+0.400 with audio vs 0.200 without, 10/15 answers changed).
+
+**Serving bug found (and fixed): vLLM gemma4 batched-audio crash.** The first concurrent
+probe killed BOTH engines instantly (`AttributeError: 'list' object has no attribute
+'squeeze'` in `gemma4_mm._process_audio_input`): vLLM caches Gemma-4 audio features
+*unpadded per item*, and a batch of different-length audios can't be stacked — it reaches
+the audio tower as a **list**, which the code doesn't handle. Single requests (batch 1)
+work, which is why all gates passed first. **Upstream vLLM main has the identical code as
+of 2026-07-10**, so this is not fixed by upgrading. Fix (user decision: patch a *clone*,
+keep `af3serve` pristine): env **`gemmaserve`** = clone of `af3serve` + a ~20-line local
+patch that re-pads the list to the batch max mel length and rebuilds the validity mask;
+original backed up at `envs/gemmaserve/.../gemma4_mm.py.orig`. `scripts/serve_gemma4_e2b.sh`
+serves from the clone. Verified against the exact failing workload (concurrency-16 probe).
+
+**Config (parity with Runs 11/13):** temp 0.8, ess 0.6 / early 0.7, systematic, style
+logit, signals {mean_logprob, entropy}, budgets {1,8,16,32}, budget-staged over one
+resumable JSONL (`scripts/run14_sweep.sh`). Prompt + step mode + max_steps chosen by
+the Run-14 probes (see below) — **no `--think-trigger`** (that is AF3's adapter
+activation, not applicable here). **Final config (2026-07-14): prompts {4,7},
+`tokens_per_step=30`, `max_steps=6`** — user decision for exact Run-13 step-config
+parity (tok30 × 6 = 180-token budget), superseding the initial coverage-based pick of
+12; a max-12 partial run (1,514 b1 rows) is archived as
+`epf_gemma_le30s.jsonl.max12_partial`.
+
+**Prompt/step selection protocol (replaces Run 12's 9-prompt screen by user decision):**
+1. gates (`phase0_gate`) + A/B causality + 30 s-truncation check + 2-clip pitch check;
+2. **100-item probe** (`probe_ids_100.txt`, seed-14 category round-robin over the ≤30 s
+   single-audio pool), prompts {4,5,7,9}, budget-1 plain generation at **t=0 AND t=0.8**
+   (`cot_compare --prompts 4,5,7,9 --temperature ...`; separate JSONLs per temp — the
+   resume key has no temperature) → user picks the sweep prompt;
+3. [`step_probe.py`](step_probe.py) (new; reimplements Run 12's lost param-check):
+   budget-1 EPF-style trajectories in both step modes (`\n\n` max6 vs tok30 max8) →
+   step mode + max_steps by the Run-12 criteria (real steps, no near-empty
+   high-logprob steps, ≤~10% max_steps truncation, p95 coverage);
+4. 16-item EPF smoke (all single-audio after the multi drop) → 0 errors, sane metrics,
+   s/item anchor.
+
+**Probe results (2026-07-13, seed-14 100-item sample, 0 errors everywhere):**
+
+*100-item 4-prompt × 2-temp budget-1 probe* (`probe100_t00/t08.*`; acc_all / acc_excl-1,
+n=100 gradeable, ±~10 pp):
+
+| # | prompt | t=0 | t=0.8 | reasoned | avg words | avg `\n\n`-chunks |
+|---|---|---|---|---|---:|---:|
+| 4 | plan-and-solve | **0.520 / 0.461** | 0.460 / 0.393 | 1.00 | 205–212 | **6.4–6.8** |
+| 5 | least-to-most | 0.420 / 0.348 | 0.460 / 0.404 | 0.72–0.74 | 57–59 | 4.6–4.7 |
+| 7 | format-forcing | 0.470 / 0.416 | **0.500 / 0.449** | 1.00 | 108–111 | 3.9 |
+| 9 | evidence-grounded | 0.490 / 0.427 | 0.490 / 0.427 | 1.00 | 117–125 | 2.3 |
+
+Unlike AF3, Gemma reasons under every prompt and emits `\n\n` freely. All accuracy
+differences are within noise; **user pick: sweep P4 + P7** (best greedy + most chunkable;
+best t=0.8, and the Run-13 prompt).
+
+*Step probe* (`step_probe.py`, new — reimplements Run 12's lost param-check; budget-1
+EPF-style trajectories, t=0.8, n=100 × 4 prompts per config):
+- **`\n\n` stepping is DEGENERATE on Gemma** (`step_probe_dnl_max6.*`): median
+  **1 token/step** (the stop-string fires inside/right after the first tokens), 67–78%
+  unparsed on P4/5/7, 60–97% of trajectories truncated at max_steps, acc collapses to
+  ~0.11. The rich `\n\n` chunking of *plain* generations does not survive as a stepping
+  delimiter — the Run-12 tiny-step/logprob-hijack pathology in a new form. Cross-model
+  lesson: chunk counts in free generation say nothing about `stop`-based stepping.
+- **`tokens_per_step=30` is healthy** (`step_probe_tok30_max8/12.*`): median 30 tok/step,
+  unparsed P4 7% / P7 1% (at max12), acc back at plain-gen levels (P4 0.43, P7 0.50),
+  `Answer:` stop fires 89–98%, EOS detection works. Coverage: P7 ends naturally 99% by
+  step 9 (mean 5.2); P4 is verbose (mean 263 tok, mean 9.2 steps, p95 = 13). Within a
+  6-step budget: **P7 fits 83%, P4 fits 14%** of trajectories — the user chose
+  **max_steps = 6 anyway** (Run-13 parity; see config note above), so P4 cells are
+  pre-registered as a truncated-CoT regime.
+
+*EPF smoke* (`smoke_epf16.*`: 16 items × {P4,P7} × both signals, b8): **64 rows, 0
+errors**, parse 0.97–1.00, final ESS 0.86–0.96, distinct 0.15–0.18 — the full machinery
+(logprob weights, systematic resampling, EOS stops) runs end-to-end. Cell speed 0.34–0.64
+s/item @b8 (2 GPUs) → **full-sweep estimate ~5–8 h wall** (1,947 × 2 prompts × 2 signals
+× {1,8,16,32}).
+
+**Sweep results — max_steps=6 (the Run-13-parity config): 31,152 rows, 0 errors,
+n=1,934 gradeable/cell (95% CI ≈ ±2.2 pp).** Selected / oracle / majority by budget:
+
+| cell | b1 | b8 | b16 | b32 | oracle@32 | majority@32 | gap@32 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| P4 mean_logprob | 0.249 | 0.271 | 0.299 | 0.307 | 0.560 | 0.357 | +0.25 |
+| P4 entropy | 0.248 | 0.305 | 0.309 | 0.323 | 0.608 | 0.359 | +0.29 |
+| P7 mean_logprob | 0.428 | **0.437** | 0.425 | 0.414 | 0.616 | 0.428 | +0.20 |
+| P7 entropy | 0.422 | **0.427** | 0.423 | 0.402 | 0.664 | 0.429 | +0.26 |
+
+(P4 parse 0.71–0.80 across budgets — truncation regime as pre-registered; P7 parse
+0.93–0.96. distinct-ratio 0.95→0.05, consensus 0.65–0.86, final ESS 0.81–1.0.)
+
+**Findings (third model):** (1) **P7 selected accuracy peaks at b8 (0.437/0.427) and
+then *declines* to b32** — no budget scaling; (2) **oracle climbs monotonically** to
+0.62–0.66 (P7) — the oracle−selected gap is **+0.20–0.29 @b32**; (3) majority ≈
+selected +0.02; (4) the two signals are equivalent. **The Run-11/13 verdict replicates
+on Gemma 4 E2B**: exploration scales, no self-certainty signal converts it, the
+selector is the wall. (P4's upward crawl with budget is a truncation-parse lottery —
+more particles = more chances one finishes; see the max12 ablation below.)
+
+**max_steps=12 ablation (Run 14b, `scripts/run14_sweep_max12.sh`,
+`epf_gemma_le30s_max12.*`; seeded from the archived max12 partial; launched
+concurrently with the max6 b32 stage — timings not cost anchors): 31,152 rows,
+0 errors.**
+
+| cell (max12) | b1 | b8 | b16 | b32 | oracle@32 | majority@32 | gap@32 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| P4 mean_logprob | 0.430 | 0.439 | 0.452 | **0.454** | 0.598 | 0.466 | +0.14 |
+| P4 entropy | 0.407 | 0.447 | 0.448 | 0.446 | 0.603 | 0.461 | +0.16 |
+| P7 mean_logprob | 0.433 | 0.454 | **0.458** | 0.449 | 0.617 | 0.450 | +0.17 |
+| P7 entropy | 0.444 | **0.460** | **0.460** | 0.447 | 0.643 | 0.456 | +0.20 |
+
+(parse 0.95–0.98 everywhere — the truncation artifact is gone.)
+
+**6-vs-12 verdict:** (1) **P4 is +13–18 pp better with 12 steps at every budget** —
+the max6 P4 numbers were pure truncation artifacts; (2) **P7 gains only +2–4.5 pp**,
+mostly at b32 where max6 had *declined* (resampling under truncation is actively
+harmful at high budget); (3) **the scaling story is identical in both configs**:
+selected saturates by b8–16 (best cell 0.460 = +1.6–4 pp over b1) and dips at b32,
+oracle climbs to 0.60–0.64, gap +0.14–0.20, majority ≈ selected +0.01, signals
+equivalent. So the step budget moves the *level* (via completion rate) but not the
+*shape* — the selector remains the wall on the third model. Bootstraps:
+`epf_gemma_le30s_bootstrap.html` (max6) and `epf_gemma_le30s_max12_bootstrap.html`.
+
+**Run 14c (planned, collaborator hardware): budgets {64, 128}** — same max12 config
+(P4+P7 × both signals × the same committed 1,947 ids), fresh JSONL
+`epf_gemma_le30s_max12_b64128.*` merged with ours at analysis time (no key overlap).
+Runner: `scripts/run14_collab_b64_128.sh`; full setup/smoke runbook: `RUN14_COLLAB.md`
+(env pins, model sha256, dataset layout, the mandatory gemma4 vLLM patch
+`scripts/patch_vllm_gemma4.py`, greedy anchors, 16-item EPF smoke). Caveat when
+reporting: b64/128 come from a different machine than b1–32 (same pins/GPU class).
+Note for analysis: `epf_bootstrap.py`'s budget axis is hardcoded to {1,8,16,32} —
+extend it before bootstrapping the merged grid.
+
+## 21. Run 15 — Gemma 4 **E4B** IT, the full grid b1→128 (planned, collaborator hardware)
+
+**Why:** the E2B story (§20) on the bigger sibling — does model scale change the
+selected-saturation / oracle-climb shape, and where does the E4B level sit? Config =
+Run 14's max12 arm exactly: prompts {4,7}, signals {mean_logprob, entropy},
+`tokens_per_step=30`, `max_steps=12`, temp 0.8, ess 0.6/0.7, systematic+logit,
+**budgets {1,8,16,32,64,128}**, the same committed 1,947-item ≤30 s single-audio ids
+(**E4B has the identical 30 s/clip cap**: `audio_seq_length=750 × 40 ms` — verified
+from its processor config). Model: `google/gemma-4-E4B-it` (16.0 GB, revision
+`fa62d88df2e6df5efa9d26ad6b3beaea2765f0cd`, `model.safetensors` sha256
+`cfbd3d2f1cd71bd471c37fe2bf8546d5028d41e5736f64e1ca6c6b8893125503`). The gemma4
+vLLM batched-audio patch (§20) is architecture-level and covers E4B unchanged.
+Runner: `scripts/run15_e4b_b1_128.sh` (E4B servers on ports 820x via
+`scripts/serve_gemma4_e4b.sh`, so it can run on a disjoint GPU set concurrently with
+Run 14c). Local preflight (gates/truncation/anchors/smoke): *results below.*
+
+**Preflight (this box, 2026-07-15): ALL PASS.** Weights sha256 verified against HF LFS
+metadata; gates PASS ×2 endpoints (Gate-1 anchor: first token `'Kn'`
+logprob=`-4.268167495727539`, top_logprobs=20); 30 s truncation identical to E2B
+(600 s clip → 770 prompt tokens, warn-not-fail); greedy anchors (t=0, local-path):
+item `22211743…` P4→D (gold B) / P7→B ✓, item `aceca2ce…` P4→C ✓ / P7→C ✓ (differs
+from E2B's P7→A on the second item — a genuine checkpoint-identity check); 16-item
+EPF smoke in the exact Run-15 config: **64 rows, 0 errors**, parse 0.95–1.00, ESS
+0.84–0.93 (`results/run15_gemma4e4b/smoke_e4b16.*`). Smoke s/item @b8 (2 GPUs):
+P4 0.75, P7 0.37–0.44 (~1.3–2× E2B) → **b1→128 estimate ≈ 35–45 h per 2 GPUs**,
+scaling ≈ linearly with endpoint count.
+
+**400-item b8 check + the P4 drop (2026-07-15).** A 400-item seeded sample (prefix-
+compatible with `probe_ids_100`; `results/run15_gemma4e4b/probe_ids_400.txt`,
+`smoke_e4b400.*`; 1,600 rows, 0 errors) compared E4B vs E2B at the identical config
+and items: **P7: E4B ≥ E2B** (+1.5–2.7 pp, within ±5 pp CI); **P4: E4B −10–13 pp
+BELOW E2B, beyond CI** — E4B's plan-and-solve writes ~300 words and truncates at the
+shared tok30×12 budget (parse dips to 0.93–0.96); the pre-registered carry-over
+caveat materialized. **Decision (user, 2026-07-16): Run 15 = P7 only.**
+
+**Local results (this box) — P7 × both signals × budgets {1,8,16}, full 1,947 items
+(n=1,934, ±2.2 pp; 11,682 rows, 0 errors; b8 seeded from the 400-item check):**
+
+| signal | b1 | b8 | b16 | oracle@16 | E2B sel (b1→b16) |
+|---|---:|---:|---:|---:|---|
+| mean_logprob | 0.465 | 0.464 | **0.479** | 0.574 | 0.433 → 0.458 |
+| entropy | 0.464 | **0.480** | 0.476 | 0.584 | 0.444 → 0.460 |
+
+E4B sits **+2–3 pp above E2B** at every point (best single-trajectory anchor yet:
+0.465); selected is already flat b1→b16 (+0–1.6 pp) while oracle climbs +11–12 pp —
+the saturation shape, fourth configuration. Notably **E4B's oracle climbs slower
+than E2B's** (0.574/0.584 vs 0.601/0.628 @b16): the bigger model is more
+deterministic, so exploration surfaces fewer alternatives and the oracle−selected
+gap is smaller (+0.10 vs +0.14–0.17).
+
+**Remaining (collaborator): P7 × both signals × budgets {32,64,128}** — the committed
+JSONL carries b1–16, so `scripts/run15_e4b_b1_128.sh` resumes past them (≈12 h per
+2 GPUs). Artifacts: `results/run15_gemma4e4b/epf_gemma4e4b_max12.{jsonl,csv,log}`.
+Caveats: step params carried from E2B (no E4B step-probe; P4's truncation is why it
+was dropped); E4B b32–128 from a different machine than b1–16 (same pins/GPU class).
+
+**Caveats (pre-registered):** ≤30 s single-audio subset only (1,947 of 5,090 MCQ →
+comparisons with Runs 11/13 are qualitative, not item-matched); two prompts {4,7};
+**P4 at tok30×6 truncates 86% of trajectories** (user-accepted, Run-13 parity — P4
+numbers reflect truncated CoT, expect elevated unparsed); `epf_bootstrap.py` renders
+prompts {4,5,7,9} only (fine — picks restricted to that set).
+
+**Artifacts:** `results/run14_gemma4e2b/` — `durations_test5090.csv`,
+`le30s_{single,multi,all}_ids.txt`, `probe_ids_100.txt`, `smoke_ids_16.txt`,
+`probe100_t00.*`, `probe100_t08.*`, `step_probe_*.{jsonl,csv,log}`, `smoke_epf16.*`,
+`epf_gemma_le30s.{jsonl,csv,log}` + `epf_gemma_le30s_bootstrap.html`.
+Scripts: `scripts/serve_gemma4_e2b.sh`, `scripts/run14_sweep.sh`.

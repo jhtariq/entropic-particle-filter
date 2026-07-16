@@ -59,7 +59,9 @@ PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
   --limit-mm-per-prompt '{"audio":3}'
 ```
 
-Flag-by-flag, with the lessons attached:
+Durable per-model serve scripts live in `scripts/` (e.g. `scripts/serve_gemma4_e2b.sh <gpu>`
+— Run 14); they encode the flags below plus the model's own quirks. Flag-by-flag, with the
+lessons attached:
 
 | flag / env | why |
 |---|---|
@@ -112,7 +114,10 @@ Additional per-model checks before burning GPU-hours:
 5. **Audio-length capacity.** Qwen2.5-Omni encodes ~25 tokens/sec of audio with no hard clip cap
    (long clips chunk-processed) → 32k context ≈ 20 min total audio. **Other models differ
    sharply**: Qwen2-Audio truncates clips at 30 s; Audio Flamingo variants have their own window
-   limits. For any new model, (a) find its audio-token rate and clip cap, (b) run the benchmark's
+   limits; **Gemma 4 E2B caps at 30 s/clip** (750 audio tokens × 40 ms — `processor_config.json`;
+   vLLM `gemma4_mm` *warns and truncates*, no HTTP error, so long-audio failures are silent —
+   Run 14 filtered to measured-≤30 s items with `make_le30s_ids.py`). For any new model,
+   (a) find its audio-token rate and clip cap, (b) run the benchmark's
    N LONGEST items through a 1-token generation preflight and check `usage.prompt_tokens` +
    absence of HTTP 400s, (c) confirm `prompt_tokens + max_steps×max_tokens_per_step ≤ max-model-len`.
    Do NOT trust a smoke test on the first-N items — parquet order is biased toward short audio.
@@ -181,6 +186,8 @@ via append-only JSONL; analysis scripts are offline.
 | `diversity_probe.py` | **the EPF grid**: prompts × signals × budgets with SMC metrics (selected/oracle/majority acc, distinct ratio, consensus, final ESS) | `--endpoints` comma list, items round-robined |
 | `divsource_probe.py` | EPF vs INDEP (resampling off) + per-step ESS traces | `--endpoints` |
 | `rerank_probe.py` | terminal answer-confidence re-rank of finished swarms | `--endpoints` |
+| `step_probe.py` | budget-1 EPF-style trajectories: step counts/token shapes, end reasons (stop/eos/max_steps), per-step logprobs — picks step mode + max_steps for a new model (Run 14; reimplements Run 12's lost param-check) | `--endpoints` |
+| `make_le30s_ids.py` | measure clip durations → duration-capped ids files (+ probe/smoke samples) for clip-capped models like Gemma 4 E2B | offline |
 | `epf_bootstrap.py` | bootstrap error bars (std_subsample + SE_full) from a grid CSV → HTML | offline |
 | `epf_report.py`, `make_report.py`, `plot_*.py` | HTML/plot reports from CSVs | offline |
 
@@ -304,6 +311,17 @@ Operational pattern that works:
 8. **Missing logprobs are silently neutral**: if an endpoint stops returning logprobs, particles
    get weight 0.0 and PF becomes uniform resampling. One warning is logged — grep for
    "no token logprobs" in long runs.
+9. **vLLM gemma4 batched-audio crash (2026-07-10).** Any batch of *different-length* audio
+   clips kills the engine (`AttributeError: 'list' object has no attribute 'squeeze'` in
+   `gemma4_mm._process_audio_input` — per-item features are cached unpadded and can't be
+   stacked). Single requests work, so gates pass and the crash only appears under
+   concurrency. Present in upstream vLLM main as of 2026-07-10. Fix: env `gemmaserve`
+   (clone of `af3serve`) carries a local re-pad patch; original at `gemma4_mm.py.orig`
+   (Run 14, RESULTS.md §20).
+10. **Stop-token stepping can degenerate even when free generations chunk well** —
+   Gemma 4 emits `\n\n` freely in plain decoding (5–7 chunks) yet `step_token="\n\n"`
+   produced median 1-token steps and 67–78% unparsed (Run 14). Always verify with
+   `step_probe.py` before trusting a delimiter; `tokens_per_step` is the robust fallback.
 
 ## 11. End-to-end checklist for a NEW (model × benchmark) experiment
 

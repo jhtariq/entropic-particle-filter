@@ -1,7 +1,7 @@
 """Compare CoT-elicitation prompts on Qwen2.5-Omni / MMAU-Pro MCQ.
 
-For each prompt method (see prompt.METHODS), run ONE generation per item (greedy, t=0) and
-measure:
+For each prompt method (see prompt.METHODS), run ONE generation per item (greedy by
+default; `--temperature` for sampled probes) and measure:
   - reasoned?   (>=15 words of reasoning before the final answer marker)
   - chunks       (\\n\\n-separated non-empty segments => how well PF can chunk it)
   - accuracy     (extracted letter vs gold)
@@ -18,6 +18,9 @@ Item selection (`--select`):
 For large runs use `--jsonl PATH`: each completed (method,item) row is streamed to that
 JSONL immediately (resumable — a re-run skips already-done rows and retries errored ones),
 and every generation is wrapped so one bad/long item can't abort the sweep.
+
+NOTE: the resume key is (unique_id, method) — temperature is NOT part of it. Runs at
+different temperatures MUST use separate --jsonl/--csv/--log files.
 
     # full 957 x 9 (background, resumable)
     python -m benchmarking.mmau_pro.cot_compare \
@@ -247,27 +250,37 @@ def _build_score_report(rows) -> str:
 @click.option("--model-name", required=True)
 @click.option("--api-key", default="NO_API_KEY")
 @click.option("--data-root", default="/home/exx/inference-time-scaling/mmau_pro_testmini")
-@click.option("--subset", type=click.Choice(["full", "le30s"]), default="le30s")
+@click.option("--subset", type=click.Choice(["full", "le30s", "test"]), default="le30s")
+@click.option("--audio-root", default=None, help="root for relative audio paths (needed for --subset test)")
 @click.option("--select", "select_mode", type=click.Choice(["smallest", "stratified", "all"]), default="smallest")
 @click.option("--ids", default=None, help="comma list of unique_ids to run exactly (overrides --select/--limit)")
+@click.option("--ids-file", default=None,
+              help="file with one unique_id per line (overrides --select/--limit; --ids wins over it)")
 @click.option("--limit", type=int, default=None, help="cap number of items (default: all for the chosen --select)")
+@click.option("--prompts", default=None, help="comma subset of prompt methods (default: all 9)")
 @click.option("--audio-mode", type=click.Choice(["local-path", "base64"]), default="base64")
 @click.option("--max-tokens", default=700)
+@click.option("--temperature", default=0.0, help="sampling temperature (default greedy; see resume-key note above)")
 @click.option("--concurrency", default=6)
 @click.option("--jsonl", "jsonl_path", default=None, help="resumable per-row stream (recommended for big runs)")
 @click.option("--csv", "csv_path", default=None, help="write per-(method,item) responses to this CSV")
 @click.option("--log", "log_path", default=None, help="also tee the score/metric tables to this file")
-def main(endpoint, model_name, api_key, data_root, subset, select_mode, ids, limit, audio_mode,
-         max_tokens, concurrency, jsonl_path, csv_path, log_path):
-    recs = load_mmau_mcq(data_root, subset=subset)
-    if ids:
-        wanted = [s.strip() for s in ids.split(",") if s.strip()]
+def main(endpoint, model_name, api_key, data_root, subset, audio_root, select_mode, ids, ids_file,
+         limit, prompts, audio_mode, max_tokens, temperature, concurrency, jsonl_path, csv_path,
+         log_path):
+    recs = load_mmau_mcq(data_root, subset=subset, audio_root=audio_root)
+    if ids or ids_file:
+        if ids:
+            wanted = [s.strip() for s in ids.split(",") if s.strip()]
+        else:
+            with open(ids_file) as f:
+                wanted = [ln.strip() for ln in f if ln.strip()]
         by_id = {r.unique_id: r for r in recs}
         missing = [w for w in wanted if w not in by_id]
         if missing:
-            raise SystemExit(f"--ids not found in {subset} pool: {missing}")
+            raise SystemExit(f"--ids/--ids-file: {len(missing)} not in {subset} pool, e.g. {missing[:3]}")
         records = [by_id[w] for w in wanted]  # preserve given order
-        select_mode = "ids"
+        select_mode = "ids" if ids else "ids-file"
     else:
         selectors = {
             "smallest": _select_items_smallest,
@@ -276,11 +289,16 @@ def main(endpoint, model_name, api_key, data_root, subset, select_mode, ids, lim
         }
         records = selectors[select_mode](recs, limit)
 
+    methods = [int(x) for x in prompts.split(",") if x.strip()] if prompts else list(METHODS)
+    unknown = [m for m in methods if m not in METHODS]
+    if unknown:
+        raise SystemExit(f"--prompts: unknown methods {unknown} (known: {sorted(METHODS)})")
+
     cat_counts = defaultdict(int)
     for r in records:
         cat_counts[r.category] += 1
-    print(f"comparing {len(METHODS)} prompts over {len(records)} MCQ items "
-          f"(subset={subset}, select={select_mode}, audio={audio_mode})", flush=True)
+    print(f"comparing {len(methods)} prompts over {len(records)} MCQ items "
+          f"(subset={subset}, select={select_mode}, audio={audio_mode}, temp={temperature})", flush=True)
     print("category mix: " + ", ".join(f"{c}:{n}" for c, n in sorted(cat_counts.items())), flush=True)
 
     resumed_rows, done = _load_resume(jsonl_path)
@@ -294,7 +312,7 @@ def main(endpoint, model_name, api_key, data_root, subset, select_mode, ids, lim
         try:
             msgs, seed = build(method, rec, audio_mode=audio_mode)
             async with sem:
-                resp = await lm.agenerate_single(msgs, max_tokens=max_tokens, temperature=0.0)
+                resp = await lm.agenerate_single(msgs, max_tokens=max_tokens, temperature=temperature)
             text = extract_content_from_lm_response(resp)
             if seed:
                 text = seed + " " + text
@@ -312,7 +330,7 @@ def main(endpoint, model_name, api_key, data_root, subset, select_mode, ids, lim
         lock = asyncio.Lock()
         out = open(jsonl_path, "a") if jsonl_path else None  # noqa: SIM115 (closed in finally; spans the loop)
         try:
-            for m in METHODS:
+            for m in methods:
                 todo = [r for r in records if (r.unique_id, m) not in done]
                 print(f"[{m}] {METHODS[m]:33s} {len(todo)} to do "
                       f"({len(records) - len(todo)} resumed)", flush=True)
@@ -351,8 +369,8 @@ def main(endpoint, model_name, api_key, data_root, subset, select_mode, ids, lim
     if log_path:
         os.makedirs(os.path.dirname(os.path.abspath(log_path)), exist_ok=True)
         with open(log_path, "w") as f:
-            f.write(f"{len(METHODS)} prompts over {len(records)} items "
-                    f"(subset={subset}, select={select_mode}, audio={audio_mode})\n")
+            f.write(f"{len(methods)} prompts over {len(records)} items "
+                    f"(subset={subset}, select={select_mode}, audio={audio_mode}, temp={temperature})\n")
             f.write("category mix: " + ", ".join(f"{c}:{n}" for c, n in sorted(cat_counts.items())) + "\n\n")
             f.write(score_report + "\n\n" + chunk_table + "\n")
         print(f"wrote tables -> {log_path}", flush=True)
