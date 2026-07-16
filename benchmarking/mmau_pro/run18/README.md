@@ -41,7 +41,7 @@ through `lib.sh:probe_model_name`; keep that discipline in any ad-hoc probing to
 
 ```bash
 git clone <repo-url> && cd entropic-particle-filter
-git checkout self-log-probs
+git checkout phi4mm
 
 export EPF_DATA_ROOT=/big/volume/epf_data   # optional — defaults to ~/epf_data
 export NUM_GPUS=8                           # optional — defaults to nvidia-smi count
