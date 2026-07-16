@@ -31,7 +31,7 @@ within the Omni family but tracks
 base competence across families), and **plain majority vote beats self-certainty selection on P9 at
 every budget ≥ 8** — the selector-is-the-wall verdict extends to a third model (§16).
 
-Last updated: 2026‑07‑14.
+Last updated: 2026‑07‑15.
 
 ---
 
@@ -482,7 +482,7 @@ the 957-run's ±0.016.
 **EPF's selected accuracy does not scale with particle count past ~8; exploration (oracle) scales
 beautifully; no self-certainty signal converts it; the selector is the wall.** This is the
 strongest-n version of the honest verdict below; the next lever remains an external/independent
-selector (§21).
+selector (§22).
 
 ## 14. Run 12 — model-size ablation: Qwen2.5-Omni-**3B**, full 5,090 MCQ (P4, P5)
 
@@ -798,7 +798,88 @@ appended here when the run lands.
 `tests/test_serve_mellow.py`); package: `run17/` (README documents knobs, cost anchors, shim
 launch/health, and the artifact list to send back).
 
-## 18. Honest verdict
+## 18. Run 18 — cross-family: Phi-4-multimodal-instruct (5.6B, speech-LoRA-served) on the FULL 5,090 test set (P4, P8)
+
+**Why:** fifth model / fourth family (Microsoft; Conformer audio encoder → Phi-4-mini backbone), and
+the first whose audio path is a **LoRA adapter**: the checkpoint ships `speech-lora/` (r=320, α=640)
+that vLLM 0.22.1 does NOT auto-load (`Phi4MMForCausalLM.load_weights` skips all `lora` tensors).
+Faithful serving = base + `--enable-lora --max-lora-rank 320 --lora-modules
+speech=<snapshot>/speech-lora`, with **every request naming the adapter (`model="speech"`), never
+the base** — a base-named request is accepted and silently answers WITHOUT the adapter (the one way
+to publish wrong numbers with no error anywhere). All run18 scripts route through
+`run18/lib.sh:probe_model_name`, and `wait_healthy` hard-fails unless `/v1/models` lists the
+adapter. Pinned revision `93f923e1…` (single snapshot = refs/main; custom code, trust-remote-code);
+the LoRA path (PunicaWrapperGPU) verified working on the Blackwell (sm_120) box.
+
+**Gates + causality + capacity (both replicas, adapter path):** phase0 logprobs-with-audio PASS ×2
+and continue_final_message PASS ×2 (the gate-2 continuation is audio-grounded). A/B causality
+(15 items, terse prompt): **6/15 answers flip** without audio — between Qwen2-Audio (9/15) and
+Mellow (3/15) — though accuracy was 7/15 in both arms on this tiny sample; the n=300 screens below
+are the stronger coupling evidence. Capacity audit (`run18/audit_audio_capacity.py` — a LIVE-endpoint
+tool, since vLLM expands audio into prompt tokens server-side): empirical rate **12.5 audio
+tokens/s** across 1.5–600 s clips (= conformer 100 frames/s ÷ time_reduction 8); 1-token preflight
+on the 30 longest items (up to 2×600 s + 3-clip items): **30/30 HTTP 200, max 15,056 prompt
+tokens** + 1,800 generation headroom ≪ 32,768 max-model-len → **the FULL 5,090-MCQ test set fits**
+(first non-Omni model in the campaign to take the full set; no derived subset needed).
+
+**Prompt screens (greedy, 0 transport errors):** 9 prompts × 40 stratified, then the shortlist × 300
+stratified (SE ≈ ±0.029):
+
+| method | acc@40 | acc@300 | acc@300 excl-1 | parse | reasoned | `\n\n` chunks |
+|---|---|---|---|---|---|---|
+| P4 plan-and-solve | 0.425 | **0.487** | 0.423 | **98.0%** | 1.00 | 3.2 |
+| P5 least-to-most | 0.500 | 0.427 | 0.371 | 88.3% | 0.89 | 2.9 |
+| P7 format-forcing | 0.500 | 0.400 | 0.352 | 91.3% | 0.92 | **3.9** |
+| P8 anti-shortcut | 0.550 | **0.480** | 0.423 | **97.7%** | 1.00 | 2.8 |
+
+(Full 9-prompt @40 tables in `screen40_9p_*.log`: P6 accurate but unchunkable (1.4 chunks);
+**P9 — Run 15's winner — collapses on Phi-4-MM** (0.325, 1.2 chunks); P1–P3 dominated. "Screen per
+model, always" holds for the fourth time.) **Grid prompts: P4 + P8** — top-2 accuracy, ≥97.7%
+parse, fully reasoned, chunkable; P4 keeps cross-model comparability with Runs 11/12/15.
+
+**Config:** canonical probe grid — P4,P8 × {mean_logprob, entropy} × budgets **{1,8,16} local**,
+then **{32,64,128} on collaborator GPUs** (run16/17 split); temp 0.8, ess 0.6 / early 0.7,
+systematic, style logit, step_token `'\n\n'`, stop `"Answer:"`, max_steps 6, no stop-regex; b1 at
+`--max-inflight 24`, rest 64; subset `test`, audio as file:// local-path. 16-item b8 smoke cell:
+**0 errors, 0.79 s/item** across both GPUs (first-16 items skew short-audio; even at n=16 the
+familiar shape: oracle 0.81 vs selected 0.38 → weight is the bottleneck).
+
+**Results (local b1/8/16, full 5,090 → n=5,066 gradeable; 61,080 rows, 0 errors; SE_full ≈ ±0.007;
+wall-clock b1 44 min / b8 197 min / b16 433 min = 11.2 h on the 2-GPU box).** selected / oracle /
+majority:
+
+| cell | b1 | b8 | b16 |
+|---|---|---|---|
+| P4 mean_logprob | .446 / .446 / .446 | .485 / .675 / .491 | .479 / .752 / .485 |
+| P4 entropy | .445 / .445 / .445 | .479 / .701 / .484 | .478 / .785 / .502 |
+| P8 mean_logprob | .461 / .461 / .461 | .474 / .700 / .484 | .470 / .774 / .491 |
+| P8 entropy | .462 / .462 / .462 | .477 / .736 / .493 | .456 / .811 / .482 |
+
+(distinct-ratio 0.95–0.98 @b1 → 0.21–0.24 @b8 → 0.12–0.14 @b16; final ESS 0.84–0.91; parse
+0.95–0.99.)
+
+**Takeaways.**
+1. **The shape replicates on a fifth model / fourth family:** selected saturates by b8 (best
+   cell-gain +3.9 pp b1→b8 on P4 mean_logprob, then −0.6 to −2.1 pp b8→b16), oracle keeps
+   climbing (0.68–0.74 @b8 → 0.75–0.81 @b16), and the oracle−selected gap widens with budget to
+   +0.27…+0.35 — weight is the bottleneck, again.
+2. **Majority ≥ self-certainty selection in all 8 cells at b≥8** (up to +2.4 pp, P4 entropy b16)
+   — the Run 15/17 selector finding now holds on every model tested at scale.
+3. Phi-4-MM's oracle ceiling (0.75–0.81 @b16, still rising) sits between Qwen2-Audio (0.63–0.68)
+   and the Omnis (0.83–0.91): exploration quality tracks base competence across families.
+4. Sampled b1 baseline 0.445–0.462 at temp 0.8 vs greedy screens 0.480–0.487 — the usual
+   temperature discount; P8's greedy edge over P4 disappears under sampling + budget.
+
+**b32–128 extension: ships in `benchmarking/mmau_pro/run18/` seeded with these local rows
+(`seeds/epf_phi4mm_5090.seed.jsonl.gz`, 61,080 rows) — results pending collaborator.**
+
+**Artifacts** (`results/run18_phi4mm/`): grid `run18/epf_phi4mm_5090.{jsonl,csv,log}`, screens
+`screen40_9p_{a,b}.*` / `greedy300_p45.*` / `greedy300_p78.*`, causality `ab_causality.log`,
+capacity `audit_capacity.{json,log}`, smoke `smoke16/smoke_b8.*`, report
+`epf_phi4mm_bootstrap.html`, `summary.txt`. Package: `run18/` (README documents the speech-LoRA
+serving contract, knobs, VRAM guidance, cost anchors, and the artifact list to send back).
+
+## 19. Honest verdict
 
 *(Written after Run 4/testmini; §§13–16 confirm and sharpen every point at full scale, across two
 model sizes and a second model family, and under step-boundary ablations. The July-2026 summary is
@@ -813,7 +894,7 @@ TL;DR 2/3 at the top.)*
 - n=952 → ±3.3 pp CI; the #4 effect is borderline (p≈0.07), not conclusively significant.
 - `baseline` = PF at budget 1 (single self‑certainty trajectory), i.e. the same CoT prompt with no resampling.
 
-## 19. Files (`benchmarking/mmau_pro/results/`)
+## 20. Files (`benchmarking/mmau_pro/results/`)
 
 Organized **one folder per run** (see `results/README.md` for the full index); cross-run figures in
 `results/plots/`. Each run folder holds `<experiment>.jsonl` (raw, resumable), `.csv`, `.log`, plus
@@ -844,12 +925,14 @@ one-file HTML reports.
 | `run15_qwen2audio_le30s/epf_q2a_le30s.{jsonl,csv,log}` | **Run 15**: Qwen2-Audio-7B-Instruct grid, P4+P9 × 2 signals × {1,8,16,32} × 2,190 (≤30 s subset); 35,040 rows, 0 errors |
 | `run15_qwen2audio_le30s/chunkscreen_q2a_greedy40.*`, `greedy300_p4579.*` | **Run 15 screens**: 9-prompt × 40 + P4/5/7/9 × 300 greedy (prompt pick; P5/P7 fail on this model) |
 | `run16_hibudget/` (created by `run16/run_all.sh`) | **Run 16**: b64/b128 extension of Runs 11/12/15 + `epf_full5090_bootstrap_b128.html`; package/seeds in `benchmarking/mmau_pro/run16/` |
+| `run18_phi4mm/run18/epf_phi4mm_5090.{jsonl,csv,log}` | **Run 18**: Phi-4-multimodal-instruct grid, P4+P8 × 2 signals × {1,8,16} local (b32–128 on collaborator GPUs) × 5,090; package/seeds in `benchmarking/mmau_pro/run18/` |
+| `run18_phi4mm/screen40_9p_*.{jsonl,csv,log}`, `greedy300_p45.*`, `greedy300_p78.*` | **Run 18 screens**: 9-prompt × 40 + P4/5/7/8 × 300 greedy (prompt pick; P9 collapses on this model) + `audit_capacity.{json,log}` + `ab_causality.log` |
 | `plots/` | cross-run figures: `acc_vs_budget.{png,html}` (Run 6), `epf_acc_vs_budget.{png,html}` (Run 10), `acc_vs_budget_combined.html`, `epf_temp_*.html` (EPF × self-consistency overlays) |
 | `smoke/mmau_smoke.jsonl` | initial 8‑item pipeline smoke |
 
 Each `run_mmau` row: `{unique_id, method, arm, budget, category, length_type, correct, latency_s, error, content}`.
 
-## 20. Reproduce
+## 21. Reproduce
 
 ```bash
 # serve (Blackwell)
@@ -967,9 +1050,15 @@ conda run -n epf python -m benchmarking.mmau_pro.epf_bootstrap --n 10000 \
 # Run 16 (b64/b128 extension of Runs 11/12/15, any machine): fully scripted —
 #   see benchmarking/mmau_pro/run16/README.md; after setup/fetch/smoke it is one command:
 #   nohup bash benchmarking/mmau_pro/run16/run_all.sh > run16.log 2>&1 &
+
+# Run 18 (Phi-4-multimodal-instruct, any machine): fully scripted — the speech-lora
+#   adapter is attached at serve time and requests must name it (model="speech"; the
+#   scripts handle this — see benchmarking/mmau_pro/run18/README.md). After
+#   setup/fetch/smoke it is one command (BUDGETS="1 8 16" for the local seed phase):
+#   nohup bash benchmarking/mmau_pro/run18/run_all.sh > run18.log 2>&1 &
 ```
 
-## 21. Next lever
+## 22. Next lever
 
 **Run 7 ruled out the obvious self-signal fix.** We tested the answer-choice-confidence reward as a terminal
 re-rank (answer-letter confidence and option-text likelihood, with and without audio) and it does **not**
