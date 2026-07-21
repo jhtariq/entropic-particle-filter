@@ -17,6 +17,10 @@ SUBSET_FILES = {
     # Run 17 sanity slice: items Mellow FULLY hears — all clips <= 10 s with channels
     # counted concatenated, the way its wrapper ingests audio (326 MCQ, single-audio)
     "test_le10s_flat": "test_le10s_flat-00000-of-00001.parquet",
+    # Run 19 (Kimi-Audio: vLLM caps at ONE audio/prompt, Whisper window is 30 s):
+    # single-audio filters of test_le30s / test (built by run19/build_1a_subset.py)
+    "test_le30s_1a": "test_le30s_1a-00000-of-00001.parquet",  # 1,947 MCQ (13 ungradeable)
+    "test_1a": "test_1a-00000-of-00001.parquet",  # 4,660 MCQ (22 ungradeable) — capacity audit
 }
 
 

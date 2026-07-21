@@ -60,8 +60,14 @@ async def _gate2(lm, audio_parts) -> bool:
 @click.option("--api-key", default="NO_API_KEY")
 @click.option("--data-root", default="/home/exx/inference-time-scaling/mmau_pro_testmini")
 @click.option("--audio-mode", type=click.Choice(["local-path", "base64"]), default="local-path")
-def main(endpoint, model_name, api_key, data_root, audio_mode):
-    rec = load_mmau_mcq(data_root, subset="le30s", limit=1)[0]
+@click.option("--single-audio", is_flag=True, default=False,
+              help="probe with the first SINGLE-audio item (models capped at 1 audio/prompt)")
+def main(endpoint, model_name, api_key, data_root, audio_mode, single_audio):
+    if single_audio:
+        rec = next(r for r in load_mmau_mcq(data_root, subset="le30s")
+                   if len(r.audio_paths) == 1)
+    else:
+        rec = load_mmau_mcq(data_root, subset="le30s", limit=1)[0]
     print(f"using audio: {[os.path.basename(p) for p in rec.audio_paths]} (mode={audio_mode})")
     audio_parts = audio_content_parts(rec.audio_paths, mode=audio_mode)
     lm = OpenAICompatibleLanguageModel(endpoint=endpoint, api_key=api_key, model_name=model_name)

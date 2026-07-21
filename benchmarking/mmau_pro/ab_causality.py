@@ -42,8 +42,14 @@ def _strip_audio(messages: list[ChatMessage]) -> list[ChatMessage]:
 @click.option("--max-tokens", default=512)
 @click.option("--method", default=0,
               help="prompt builder: 0 = terse build_messages (default), else a build(method) id")
-def main(endpoint, model_name, api_key, data_root, limit, max_tokens, method):
-    records = load_mmau_mcq(data_root, subset="le30s", limit=limit)
+@click.option("--single-audio", is_flag=True, default=False,
+              help="only single-audio items (models capped at 1 audio/prompt)")
+def main(endpoint, model_name, api_key, data_root, limit, max_tokens, method, single_audio):
+    if single_audio:
+        records = [r for r in load_mmau_mcq(data_root, subset="le30s")
+                   if len(r.audio_paths) == 1][:limit]
+    else:
+        records = load_mmau_mcq(data_root, subset="le30s", limit=limit)
     lm = OpenAICompatibleLanguageModel(endpoint=endpoint, api_key=api_key, model_name=model_name)
 
     async def _one(messages):
