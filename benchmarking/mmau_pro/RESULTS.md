@@ -31,7 +31,7 @@ within the Omni family but tracks
 base competence across families), and **plain majority vote beats self-certainty selection on P9 at
 every budget ≥ 8** — the selector-is-the-wall verdict extends to a third model (§16).
 
-Last updated: 2026‑07‑15.
+Last updated: 2026‑07‑21.
 
 ---
 
@@ -482,7 +482,7 @@ the 957-run's ±0.016.
 **EPF's selected accuracy does not scale with particle count past ~8; exploration (oracle) scales
 beautifully; no self-certainty signal converts it; the selector is the wall.** This is the
 strongest-n version of the honest verdict below; the next lever remains an external/independent
-selector (§22).
+selector (§23).
 
 ## 14. Run 12 — model-size ablation: Qwen2.5-Omni-**3B**, full 5,090 MCQ (P4, P5)
 
@@ -591,6 +591,42 @@ A third and fourth independent manipulation of resampling frequency, same answer
 merely not-earning-its-keep — every added resampling opportunity actively costs coverage. Within
 the RL-free framing this closes the case: **best-of-N sampling + a better (external) selector
 dominates particle filtering on this task family, at any step granularity.**
+
+### Run 13 expansion (2026-07-18) — full-set items + budgets to 128 (with matched control)
+
+Two extensions appended in place (same folder/JSONL; resume): **(a)** the matched-delimiter arm
+b1–32 extended from 957 → **all 5,090 MCQ** (control = Run 11's full-set P9 cells, free);
+**(b)** budgets **64 and 128** on the 957, in BOTH arms — matched (`\n`, max_steps 14) appended
+to `p9delim_957.jsonl`, plus a NEW control arm (`\n\n`, defaults) in `p9delim_ctrl64128.*`
+(Run 16 had extended only P5, so this control didn't exist). 40,720 + 3,828 + 3,828 rows total,
+0 errors, ~39 h on both GPUs, gates re-PASSed.
+
+**(a) Full-set replication (n=5,066/cell, SE ±0.7 pp) — the −10 pp penalty is now a full-set fact:**
+
+| cell | selected: ctrl→matched | oracle: ctrl→matched |
+|---|---|---|
+| ml b8 / b16 / b32 | .561→.570 / .571→.567 / .565→.564 | .786→.684 / .856→.747 / .914→.812 |
+| ent b8 / b16 / b32 | .573→.570 / .570→.576 / .577→.575 | .792→.695 / .868→.771 / .914→.825 |
+
+Oracle penalty −8.9…−10.9 pp at every budget×signal; every selection delta within ±1 pp.
+
+**(b) Budgets 64/128 (957 scope, CI ±3 pp) — the penalty narrows with N but never closes, and
+the selection wall survives 128 particles:**
+
+| cell | selected: ctrl→matched | oracle: ctrl→matched (Δ) | majority: ctrl→matched |
+|---|---|---|---|
+| ml b64 | .557→.579 | .951→.871 (**−8.0**) | .619→.607 |
+| ml b128 | .547→.559 | .970→.904 (**−6.5**) | .610→.596 |
+| ent b64 | .557→.563 | .950→.887 (**−6.3**) | .612→.587 |
+| ent b128 | .574→.568 | .971→.930 (**−4.1**) | .616→.595 |
+
+**Findings:** (1) the control's oracle at b128 (0.970/0.971) converges on Run 8's
+independent-sampling ceiling (~0.97) — at high N, ≈1-resample EPF ≈ best-of-N, as expected;
+(2) real stepping needs ~**2 extra budget doublings (4× compute) to buy back the culled
+coverage** (matched b128 ≈ control b32: 0.904/0.930 vs 0.911); the deficit shrinks slowly
+(−10 → −4…−6.5 pp) but is still decisive at 128 particles; (3) **selected accuracy is flat at
+0.55–0.58 in BOTH arms at EVERY budget through 128** — a fifth and sixth budget regime hitting
+the same selection wall. The expansion strengthens, not softens, the verdict above.
 
 ## 16. Run 15 — cross-family swap: Qwen2-Audio-7B-Instruct on the ≤30 s test subset (P4, P9)
 
@@ -879,7 +915,119 @@ capacity `audit_capacity.{json,log}`, smoke `smoke16/smoke_b8.*`, report
 `epf_phi4mm_bootstrap.html`, `summary.txt`. Package: `run18/` (README documents the speech-LoRA
 serving contract, knobs, VRAM guidance, cost anchors, and the artifact list to send back).
 
-## 19. Honest verdict
+## 19. Run 19 — cross-family: Kimi-Audio-7B-Instruct (7B, six-bug vLLM serving wrapper) on the single-audio ≤30 s test subset (test_le30s_1a, 1,947 MCQ; P2, P4)
+
+**Why:** model #6, family #5 (Moonshot: Whisper-large-v3 front-end → Qwen2.5-family 7B backbone,
+tiktoken tokenizer; a hybrid audio-token+text model served audio-in/text-out — vLLM skips its
+MIMO/TTS heads). Tests whether the Run 11–18 shape (selected saturates, oracle climbs,
+majority ≥ self-certainty) survives a 5th architecture family.
+
+**Serving (the actual story of this run):** vLLM 0.22.1 registers `MoonshotKimiaForCausalLM`
+natively, but SIX bugs make the stock chat path unusable, all fixed in a committed wrapper
+(`run19/serve_kimi.py` + corrected `run19/template_kimi_audio_epf.jinja`; never plain
+`vllm serve`): (1) no chat template auto-wired (every chat request 400s); (2) the tokenizer's
+`apply_chat_template` passes the conversation unwrapped to transformers → every prompt renders
+EMPTY; (3) `continue_final_message` — the EPF step primitive — crashes with a KeyError; (4) two
+concurrent audio requests with different clip lengths KILL the whole engine (`EngineDeadError`,
+observed twice at screen concurrency: list-of-features where a stacked tensor is assumed, then
+`torch.stack` on unequal encoder outputs; fixed by running the batch-of-one path per item); (5)
+the model habitually ends answers with a literal `"[EOS]"` string, which tiktoken then refuses
+to re-encode when the EPF loop feeds the text back as an assistant prefill (29/32 P2 smoke rows
+400'd; fixed with `disallowed_special=()`); (6) `top_logprobs` — required by the entropy signal
+— eventually surfaces an AUDIO-vocab id (≥ `kimia_token_offset` 152064; the LM head covers the
+audio vocabulary) in the top-20, whose per-candidate decode raises a tiktoken KeyError that
+kills the AsyncLLM output handler and the whole server (stochastic: survived gates/screens/
+smoke, then killed both replicas minutes into the b1 stage; fixed with a per-token decode
+fallback → `""` — EPF consumes the top-logprob NUMBERS, the candidate strings are cosmetic).
+The corrected template also renders system messages,
+which the vLLM-bundled one silently drops. Wrapper PID handling follows the Run 17 `--pid-file`
+lesson. Pinned revision `9a82a84c37ad9eb1307fb6ed8d7b397862ef9e6b`; served name `kimi-audio`;
+maxlen 8192 (= `max_position_embeddings`); util 0.85; `--limit-mm-per-prompt '{"audio":1}'`
+(the honest value — vLLM silently clamps larger); ~23 GB download (TTS-only
+`audio_detokenizer/` 19 GB + `vocoder/` 1 GB excluded; note the `hf` CLI overrides a second
+`--exclude` flag instead of appending).
+
+**Hard model constraints → subset:** vLLM's kimi path accepts at most ONE audio per prompt
+(multi-audio 400s at request time), and the Whisper front-end hard-truncates every clip to its
+first 30 s (~12.5 audio tok/s → ~376–390 tokens regardless of length; verified offline from the
+shipped preprocessor and live below). New loader subsets (built by `run19/build_1a_subset.py`,
+parquets committed in `run19/data/`): **`test_le30s_1a` = single-audio ∩ ≤30 s = 1,947 MCQ**
+(13 ungradeable; from test_le30s's 2,190 minus 243 two-audio items) — both constraints lossless
+by construction — and `test_1a` (4,660; 22 ungradeable) for capacity audits. `phase0_gate` and
+`ab_causality` gained a backward-compatible `--single-audio` flag (the first `le30s` item has
+two clips and would spuriously 400).
+
+**Gates + causality + capacity:** phase0 ×2 both PASS (per-token logprobs + top-20 WITH audio;
+`continue_final_message` WITH audio through the wrapper), plus a per-server `sanity_prompt`
+check that catches the empty-render failure mode (healthy render = 10 prompt tokens vs ~1–2
+broken). A/B causality (15 single-audio items, terse prompt): acc 0.333 WITH audio vs 0.200
+without, **11/15 answers change** — the model hears the audio. Capacity audit
+(`run19/audit_audio_capacity.py`, subset `test_1a`): 30 longest items (579–590 s) all HTTP 200
+with **432–439 prompt tokens** — the ~390-token audio plateau + text, live proof of the 30 s
+cap; max prompt 461 ≪ 8192 − 1800 headroom; 0/30 failures.
+
+**Prompt screens** (`test_le30s_1a`, stratified; 9-prompt × 40, then P1/P2/P4/P6/P9 × 300 —
+P9 added for the Run 15 comparison axis; 0 errors in 1,860 greedy generations):
+
+| P (n=300) | method | acc | reasoned | avg words | `\n\n` chunks | no-prediction |
+|---|---|---|---|---|---|---|
+| 1 | assistant-prefill CoT | 0.440 | 0.98 | 102 | 3.6 | 36/300 |
+| **2** | zero-shot CoT | **0.507** | 0.88 | 178 | 5.1 | **9/300** |
+| **4** | plan-and-solve | **0.493** | 0.92 | 118 | **7.7** | 20/300 |
+| 6 | describe-then-reason | 0.400 | 0.96 | 116 | 7.9 | 31/300 |
+| 9 | evidence-grounded (boxed) | 0.407 | 0.93 | 181 | 2.1 | 44/300 |
+
+(9×40 screen: P1 led at 0.550 but regressed to 0.440 at n=300; P3/P9 barely chunk (1.3/1.5 at
+n=40); P5/P7 chunk hard but reason on <½ of items.) **Grid prompts: P2 + P4** — top two
+accuracies, both chunkable, best parse rates; P4 is the cross-run comparability anchor
+(Runs 12/15/16/18). Screen per model, always.
+
+**Config:** canonical probe grid — P2,4 × {mean_logprob, entropy} × budgets {1,8,16} local
+(b32 default + b64/128 by knob on collaborator GPUs), temp 0.8, ess 0.6 / early-phase 0.7,
+systematic resampling, style logit, step_token `'\n\n'`, stop `"Answer:"`, max_steps 6;
+budget-staged via `run19/run_all.sh`, b1 `--max-inflight 24` else 64. 16-item b8 smoke cell:
+4 cells × 16 items, **0 errors**, parse 0.94–1.00, diversity present (distinct 0.16–0.25),
+~7 min wall (short-audio-biased). Local stages: **b1 = 16 min, b8 = 132 min, b16 = 306 min**
+(2 GPUs); 23,364 deduped rows, **0 errors** (the first b1 attempt crash-looped on bug 6 — see
+Serving — and was fully swept up by the JSONL resume after the decode patch: the driver's
+`--min-budget` stage check then reports spurious "errors" for later-budget legacy rows, cosmetic
+only). Raw: `results/run19_kimiaudio/run19/epf_kimi_le30s1a.*`.
+
+**Results** (n=1,934 gradeable; SE_full ≈ ±0.011; cells are **selected / oracle / majority**):
+
+| cell | b1 | b8 | b16 |
+|---|---|---|---|
+| P2 mean_logprob | .487 / .487 / .487 | .505 / .627 / .510 | .496 / .658 / .496 |
+| P2 entropy | .459 / .459 / .459 | .498 / .649 / .507 | .501 / .707 / .507 |
+| P4 mean_logprob | .461 / .461 / .461 | .512 / .675 / .522 | .506 / .747 / .555 |
+| P4 entropy | .455 / .455 / .455 | .497 / .683 / .535 | .508 / .760 / .544 |
+
+(distinct-ratio 0.93–0.98 @b1 → 0.17–0.19 @b8 → 0.10–0.11 @b16; final ESS 0.89–0.91;
+parse 0.93–0.99.)
+
+**Takeaways.**
+1. **The Runs 11–18 shape replicates on a 5th family**: selected saturates by b8 (0.497–0.512,
+   flat or −1 pp at b16) while oracle climbs 0.63–0.68 @b8 → 0.66–0.76 @b16 — the
+   oracle−selected gap widens to +16…+25 pp; weight is the bottleneck, again.
+2. **Majority ≥ self-certainty selection** in every P4 cell at b≥8 (up to +4.9 pp, P4
+   mean_logprob b16) and ties on P2 — the selector finding now holds on every model tested.
+3. Kimi-Audio's oracle ceiling (0.75–0.76 @b16, still rising) sits between Qwen2-Audio
+   (0.63–0.68) and the Omnis (0.83–0.91) — exploration quality keeps tracking base competence
+   across families, here under a 30 s listening window.
+4. Sampled b1 (0.455–0.487, temp 0.8) vs greedy screens (0.493–0.507) — the usual temperature
+   discount; P2's greedy edge over P4 shrinks under sampling.
+
+**b32+ extension: ships in `benchmarking/mmau_pro/run19/` seeded with these local rows
+(`seeds/epf_kimi_le30s1a.seed.jsonl.gz`, 23,364 rows) — results pending collaborator.**
+
+**Artifacts** (`results/run19_kimiaudio/`): grid `run19/epf_kimi_le30s1a.{jsonl,csv,log}`,
+screens `screen40_9p_{a,b}.*` / `greedy300_p149.*` / `greedy300_p26.*`, causality
+`ab_causality.log`, capacity `audit_capacity.{json,log}`, smoke `smoke16/smoke_b8.*`, report
+`epf_kimi_bootstrap.html`, `summary.txt`. Package: `run19/` (README documents the five serving
+bugs + wrapper contract, 1-audio/30 s constraints, knobs, VRAM guidance, cost anchors, and the
+artifact list to send back).
+
+## 20. Honest verdict
 
 *(Written after Run 4/testmini; §§13–16 confirm and sharpen every point at full scale, across two
 model sizes and a second model family, and under step-boundary ablations. The July-2026 summary is
@@ -894,7 +1042,7 @@ TL;DR 2/3 at the top.)*
 - n=952 → ±3.3 pp CI; the #4 effect is borderline (p≈0.07), not conclusively significant.
 - `baseline` = PF at budget 1 (single self‑certainty trajectory), i.e. the same CoT prompt with no resampling.
 
-## 20. Files (`benchmarking/mmau_pro/results/`)
+## 21. Files (`benchmarking/mmau_pro/results/`)
 
 Organized **one folder per run** (see `results/README.md` for the full index); cross-run figures in
 `results/plots/`. Each run folder holds `<experiment>.jsonl` (raw, resumable), `.csv`, `.log`, plus
@@ -920,19 +1068,22 @@ one-file HTML reports.
 | `run11_epf_full5090/epf_full5090_bootstrap.html` | **Runs 11+12+15 combined report**: per-model sections (Omni-7B + Omni-3B + Qwen2-Audio), bootstrap error bars + interactive acc-vs-budget plots |
 | `run12_omni3b_5090/epf3b_5090.{jsonl,csv,log}` | **Run 12**: Omni-**3B** grid, P4+P5 × 2 signals × {1,8,16,32} × 5,090; 81,440 rows |
 | `run12_omni3b_5090/chunkprobe_3b_greedy100.csv` (+`chunkprobe_ids.txt`) | **Run 12 side-probe**: 100 seeded items × 9 prompts, greedy 3B responses (chunkability/format-compliance analysis; 7B counterpart = `run05_cot957/cot957.csv`) |
-| `run13_p9delim/p9delim_957.{jsonl,csv,log}` | **Run 13**: P9 × 7B × 957 with matched `\n` delimiter (control = Run 10 P9 cells) |
+| `run13_p9delim/p9delim_957.{jsonl,csv,log}` | **Run 13 (+2026-07-18 expansion)**: P9 × 7B, matched `\n` delimiter — b1–32 on the FULL 5,090 + b64/128 on the 957; 44,548 rows (controls = Run 11 P9 cells and `p9delim_ctrl64128`) |
+| `run13_p9delim/p9delim_ctrl64128.{jsonl,csv,log}` | **Run 13 expansion**: control arm (`\n\n`, default 6-step) P9 × 7B × 957, b64/128 only; 3,828 rows |
 | `run14_p5stopfix/p5stopfix_957.{jsonl,csv,log}` | **Run 14**: P5 × 3B × 957 with letter-answer stop regex + repeat guard (control = Run 12 P5 cells) |
 | `run15_qwen2audio_le30s/epf_q2a_le30s.{jsonl,csv,log}` | **Run 15**: Qwen2-Audio-7B-Instruct grid, P4+P9 × 2 signals × {1,8,16,32} × 2,190 (≤30 s subset); 35,040 rows, 0 errors |
 | `run15_qwen2audio_le30s/chunkscreen_q2a_greedy40.*`, `greedy300_p4579.*` | **Run 15 screens**: 9-prompt × 40 + P4/5/7/9 × 300 greedy (prompt pick; P5/P7 fail on this model) |
 | `run16_hibudget/` (created by `run16/run_all.sh`) | **Run 16**: b64/b128 extension of Runs 11/12/15 + `epf_full5090_bootstrap_b128.html`; package/seeds in `benchmarking/mmau_pro/run16/` |
 | `run18_phi4mm/run18/epf_phi4mm_5090.{jsonl,csv,log}` | **Run 18**: Phi-4-multimodal-instruct grid, P4+P8 × 2 signals × {1,8,16} local (b32–128 on collaborator GPUs) × 5,090; package/seeds in `benchmarking/mmau_pro/run18/` |
 | `run18_phi4mm/screen40_9p_*.{jsonl,csv,log}`, `greedy300_p45.*`, `greedy300_p78.*` | **Run 18 screens**: 9-prompt × 40 + P4/5/7/8 × 300 greedy (prompt pick; P9 collapses on this model) + `audit_capacity.{json,log}` + `ab_causality.log` |
+| `run19_kimiaudio/run19/epf_kimi_le30s1a.{jsonl,csv,log}` | **Run 19**: Kimi-Audio-7B-Instruct grid, P2+P4 × 2 signals × {1,8,16} local (b32+ on collaborator GPUs) × 1,947 `test_le30s_1a`; package in `benchmarking/mmau_pro/run19/` (six-bug serving wrapper `serve_kimi.py`) |
+| `run19_kimiaudio/screen40_9p_*.{jsonl,csv,log}`, `greedy300_p149.*`, `greedy300_p26.*` | **Run 19 screens**: 9-prompt × 40 + P1/2/4/6/9 × 300 greedy (prompt pick; P1 regresses at n=300, P9 barely chunks) + `audit_capacity.{json,log}` + `ab_causality.log` + `smoke16/smoke_b8.*` |
 | `plots/` | cross-run figures: `acc_vs_budget.{png,html}` (Run 6), `epf_acc_vs_budget.{png,html}` (Run 10), `acc_vs_budget_combined.html`, `epf_temp_*.html` (EPF × self-consistency overlays) |
 | `smoke/mmau_smoke.jsonl` | initial 8‑item pipeline smoke |
 
 Each `run_mmau` row: `{unique_id, method, arm, budget, category, length_type, correct, latency_s, error, content}`.
 
-## 21. Reproduce
+## 22. Reproduce
 
 ```bash
 # serve (Blackwell)
@@ -1036,6 +1187,12 @@ conda run -n epf python -m benchmarking.mmau_pro.epf_bootstrap --n 10000 \
 #   Run 13: --prompts 9 --max-steps 14 --step-token $'\n'
 #   Run 14: --prompts 5 --max-steps 10 --stop-regex 'Answer:\s*(\\boxed\{)?\(?[A-K]\b' --stop-on-repeat
 # (957 items: --subset full --select all --limit 1000; budget-1 stage at --max-inflight 24)
+# Run 13 expansion (2026-07-18), appended to the same jsonl (resume skips the 957):
+#   items→5,090: same Run-13 flags + --subset test --audio-root .../mmau_pro_audio --limit 6000,
+#                staged --budgets 1 (inflight 24) then 8,16,32 (inflight 64)
+#   matched b64/128 (957): same Run-13 flags + --subset full --limit 1000 --budgets 64,128
+#   control b64/128 (957): DEFAULT step flags (\n\n, max-steps 6) --budgets 64,128
+#                → run13_p9delim/p9delim_ctrl64128.{jsonl,csv,log}
 
 # Run 15: Qwen2-Audio-7B-Instruct. Serve Qwen/Qwen2-Audio-7B-Instruct (served name qwen2-audio)
 # with the same template but --max-model-len 8192 (its full context; Whisper-style encoder
@@ -1056,9 +1213,17 @@ conda run -n epf python -m benchmarking.mmau_pro.epf_bootstrap --n 10000 \
 #   scripts handle this — see benchmarking/mmau_pro/run18/README.md). After
 #   setup/fetch/smoke it is one command (BUDGETS="1 8 16" for the local seed phase):
 #   nohup bash benchmarking/mmau_pro/run18/run_all.sh > run18.log 2>&1 &
+
+# Run 19 (Kimi-Audio-7B-Instruct, any machine): fully scripted — serving MUST go through
+#   the wrapper run19/serve_kimi.py (six vLLM 0.22.1 kimi bugs patched: chat template,
+#   empty renders, continue_final_message, concurrent-audio engine death, [EOS]-as-text,
+#   audio-id decode KeyError under top_logprobs;
+#   the scripts handle this — see benchmarking/mmau_pro/run19/README.md). After
+#   setup/fetch/smoke it is one command (BUDGETS="1 8 16" for the local seed phase):
+#   nohup bash benchmarking/mmau_pro/run19/run_all.sh > run19.log 2>&1 &
 ```
 
-## 22. Next lever
+## 23. Next lever
 
 **Run 7 ruled out the obvious self-signal fix.** We tested the answer-choice-confidence reward as a terminal
 re-rank (answer-letter confidence and option-text likelihood, with and without audio) and it does **not**
