@@ -32,9 +32,10 @@ set -euo pipefail
 GPU="${1:?usage: serve_gemma4_e2b.sh <gpu-index>}"
 PORT=$((8100 + GPU))
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# Override these two for your machine (defaults = the original Run-14 box):
+# Override these for your machine (defaults = the original Run-14 box):
 GEMMA_VLLM="${GEMMA_VLLM:-/home/tariqvrh4/miniconda3/envs/gemmaserve/bin/vllm}"
 HF_HOME="${HF_HOME:-/home/tariqvrh4/hf_cache}"
+ALLOWED_MEDIA_PATH="${ALLOWED_MEDIA_PATH:-$REPO/data}"
 
 HF_HOME="$HF_HOME" \
 CUDA_VISIBLE_DEVICES="$GPU" \
@@ -44,5 +45,5 @@ exec "$GEMMA_VLLM" serve google/gemma-4-E2B-it \
   --served-model-name gemma4-e2b --port "$PORT" \
   --dtype bfloat16 --max-model-len 16384 --enforce-eager \
   --gpu-memory-utilization 0.85 \
-  --allowed-local-media-path "$REPO/data" \
+  --allowed-local-media-path "$ALLOWED_MEDIA_PATH" \
   --limit-mm-per-prompt '{"audio":3}'

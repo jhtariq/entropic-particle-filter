@@ -18,6 +18,7 @@ PORT=$((8200 + GPU))
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GEMMA_VLLM="${GEMMA_VLLM:-/home/tariqvrh4/miniconda3/envs/gemmaserve/bin/vllm}"
 HF_HOME="${HF_HOME:-/home/tariqvrh4/hf_cache}"
+ALLOWED_MEDIA_PATH="${ALLOWED_MEDIA_PATH:-$REPO/data}"
 
 HF_HOME="$HF_HOME" \
 CUDA_VISIBLE_DEVICES="$GPU" \
@@ -27,5 +28,5 @@ exec "$GEMMA_VLLM" serve google/gemma-4-E4B-it \
   --served-model-name gemma4-e4b --port "$PORT" \
   --dtype bfloat16 --max-model-len 16384 --enforce-eager \
   --gpu-memory-utilization 0.85 \
-  --allowed-local-media-path "$REPO/data" \
+  --allowed-local-media-path "$ALLOWED_MEDIA_PATH" \
   --limit-mm-per-prompt '{"audio":3}'

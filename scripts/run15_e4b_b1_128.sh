@@ -23,11 +23,12 @@ set -euo pipefail
 PY="${PY:-$HOME/miniconda3/envs/epf/bin/python}"    # client env python
 # one E4B vLLM server per GPU in THIS run's GPU set (see serve_gemma4_e4b.sh):
 ENDPOINTS="${ENDPOINTS:-http://localhost:8200/v1,http://localhost:8201/v1}"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DATA_ROOT="${DATA_ROOT:-$REPO/data/mmau_pro}"       # parquet root (single-root layout default)
+AUDIO_ROOT="${AUDIO_ROOT:-}"                        # set if audio lives outside DATA_ROOT (split-root layout)
 # =====================================================
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODEL_NAME=gemma4-e4b
-DATA_ROOT=$REPO/data/mmau_pro
 IDS=$REPO/benchmarking/mmau_pro/results/run14_gemma4e2b/le30s_single_ids.txt  # committed
 OUT=$REPO/benchmarking/mmau_pro/results/run15_gemma4e4b
 JSONL=$OUT/epf_gemma4e4b_max12.jsonl
@@ -49,7 +50,7 @@ for B in 1 8 16 32 64 128; do
   [ "$B" -ge 64 ] && INFLIGHT=128
   $PY -m benchmarking.mmau_pro.diversity_probe \
     --endpoints "$ENDPOINTS" --model-name "$MODEL_NAME" \
-    --data-root "$DATA_ROOT" --subset test \
+    --data-root "$DATA_ROOT" ${AUDIO_ROOT:+--audio-root "$AUDIO_ROOT"} --subset test \
     --prompts 7 --signals mean_logprob,entropy --budgets "$B" \
     --temp 0.8 --ess-threshold 0.6 --early-phase 0.7 \
     --max-steps 12 --max-tokens-per-step 300 --tokens-per-step 30 \

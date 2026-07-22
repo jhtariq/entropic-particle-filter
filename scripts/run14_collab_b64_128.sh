@@ -11,16 +11,17 @@
 # Crash/interruption recovery: rerun the same command (resumable JSONL).
 set -euo pipefail
 
-# ============ ADAPT THESE THREE TO YOUR MACHINE ============
+# ============ ADAPT THESE TO YOUR MACHINE ============
 PY="${PY:-$HOME/miniconda3/envs/epf/bin/python}"   # client env python (see RUN14_COLLAB.md §1)
 # one vLLM server per GPU, comma-listed (see RUN14_COLLAB.md §4):
 ENDPOINTS="${ENDPOINTS:-http://localhost:8100/v1,http://localhost:8101/v1}"
 MAX_INFLIGHT="${MAX_INFLIGHT:-128}"                 # per-endpoint request target
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DATA_ROOT="${DATA_ROOT:-$REPO/data/mmau_pro}"       # parquet root (single-root layout default)
+AUDIO_ROOT="${AUDIO_ROOT:-}"                        # set if audio lives outside DATA_ROOT (split-root layout)
 # ===========================================================
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODEL_NAME=gemma4-e2b
-DATA_ROOT=$REPO/data/mmau_pro
 OUT=$REPO/benchmarking/mmau_pro/results/run14_gemma4e2b
 IDS=$OUT/le30s_single_ids.txt                       # committed to git — 1,947 ids
 JSONL=$OUT/epf_gemma_le30s_max12_b64128.jsonl
@@ -34,7 +35,7 @@ cd "$REPO"
 for B in 64 128; do
   $PY -m benchmarking.mmau_pro.diversity_probe \
     --endpoints "$ENDPOINTS" --model-name "$MODEL_NAME" \
-    --data-root "$DATA_ROOT" --subset test \
+    --data-root "$DATA_ROOT" ${AUDIO_ROOT:+--audio-root "$AUDIO_ROOT"} --subset test \
     --prompts 4,7 --signals mean_logprob,entropy --budgets "$B" \
     --temp 0.8 --ess-threshold 0.6 --early-phase 0.7 \
     --max-steps 12 --max-tokens-per-step 300 --tokens-per-step 30 \
