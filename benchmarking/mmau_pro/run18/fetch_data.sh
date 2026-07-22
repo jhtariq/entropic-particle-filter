@@ -2,7 +2,9 @@
 # Download and lay out the MMAU-Pro data exactly as the loader expects:
 #   $EPF_DATA_ROOT/mmau_pro_testmini/data/*.parquet  (+ 1,099 testmini audio files)
 #   $EPF_DATA_ROOT/mmau_pro_audio/data/              (5,787 files, 53 GB)
-# Run 18 uses the stock full-test parquet (subset "test") — no derived subsets.
+# Run 18 uses the stock full-test parquet (subset "test"); it also copies in the
+# le30s derived parquets since lib.sh:gate_endpoint's phase0 gate always checks
+# subset="le30s" regardless of which run invokes it.
 # Idempotent — safe to re-run after an interrupted download.
 set -euo pipefail
 RUN18_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,11 +34,15 @@ else
   echo "   already present ($NFILES files) — skipping"
 fi
 
-echo "== 3/4 copy the 1,099 testmini clips beside the testmini parquets"
+echo "== 3/5 le30s derived parquets (phase0_gate needs subset='le30s' regardless of run)"
+cp -n "$RUN18_DIR/../run16/data/test_le30s-00000-of-00001.parquet"     "$DATA_TESTMINI/data/" || true
+cp -n "$RUN18_DIR/../run16/data/testmini_le30s-00000-of-00001.parquet" "$DATA_TESTMINI/data/" || true
+
+echo "== 4/5 copy the 1,099 testmini clips beside the testmini parquets"
 "$EPF_PY" "$RUN18_DIR/prep_testmini_audio.py" \
   --testmini-root "$DATA_TESTMINI" --audio-root "$DATA_AUDIO"
 
-echo "== 4/4 loader verification (exact expected counts)"
+echo "== 5/5 loader verification (exact expected counts)"
 "$EPF_PY" - "$DATA_TESTMINI" "$DATA_AUDIO" <<'PYEOF'
 import sys
 from benchmarking.mmau_pro.loader import load_mmau_mcq

@@ -6,8 +6,8 @@ source "$RUN18_DIR/config.sh"
 cd "$REPO_ROOT"
 
 if [ ! -x "$EPF_PY" ]; then
-  echo "creating conda env '$EPF_ENV_NAME' (python 3.11)"
-  conda create -n "$EPF_ENV_NAME" python=3.11 -y
+  echo "creating conda env at $CONDA_BASE/envs/$EPF_ENV_NAME (python 3.11)"
+  conda create --prefix "$CONDA_BASE/envs/$EPF_ENV_NAME" python=3.11 -y
 fi
 "$EPF_PY" -m pip install -r requirements-epf.txt
 "$EPF_PY" -m pip install -e ".[dev,benchmark]"
