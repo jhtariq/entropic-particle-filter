@@ -54,35 +54,49 @@ async def _gate2(lm, audio_parts) -> bool:
     return ok
 
 
-@click.command()
-@click.option("--endpoint", required=True)
-@click.option("--model-name", required=True)
-@click.option("--api-key", default="NO_API_KEY")
-@click.option("--data-root", default="/home/exx/inference-time-scaling/mmau_pro_testmini")
-@click.option("--audio-mode", type=click.Choice(["local-path", "base64"]), default="local-path")
-@click.option("--single-audio", is_flag=True, default=False,
-              help="probe with the first SINGLE-audio item (models capped at 1 audio/prompt)")
-def main(endpoint, model_name, api_key, data_root, audio_mode, single_audio):
-    if single_audio:
-        rec = next(r for r in load_mmau_mcq(data_root, subset="le30s")
-                   if len(r.audio_paths) == 1)
-    else:
-        rec = load_mmau_mcq(data_root, subset="le30s", limit=1)[0]
-    print(f"using audio: {[os.path.basename(p) for p in rec.audio_paths]} (mode={audio_mode})")
-    audio_parts = audio_content_parts(rec.audio_paths, mode=audio_mode)
-    lm = OpenAICompatibleLanguageModel(endpoint=endpoint, api_key=api_key, model_name=model_name)
+def make_cli(loader_fn=load_mmau_mcq,
+             default_data_root="/home/exx/inference-time-scaling/mmau_pro_testmini",
+             gate_subset="le30s"):
+    """Build the gate CLI bound to a benchmark loader.
 
-    async def _run():
-        try:
-            g1 = await _gate1(lm, audio_parts)
-            g2 = await _gate2(lm, audio_parts)
-        finally:
-            await lm.close()
-        print(f"\nRESULT: {json.dumps({'gate1_logprobs': g1, 'gate2_continue': g2})}")
-        if not g1:
-            print("GATE 1 failed -> self-certainty needs the fallback ladder before runs.")
+    Defaults reproduce the original MMAU-Pro CLI exactly; other benchmarks
+    instantiate their own `main` (see benchmarking/mmar/phase0_gate.py).
+    """
 
-    asyncio.run(_run())
+    @click.command()
+    @click.option("--endpoint", required=True)
+    @click.option("--model-name", required=True)
+    @click.option("--api-key", default="NO_API_KEY")
+    @click.option("--data-root", default=default_data_root)
+    @click.option("--audio-mode", type=click.Choice(["local-path", "base64"]), default="local-path")
+    @click.option("--single-audio", is_flag=True, default=False,
+                  help="probe with the first SINGLE-audio item (models capped at 1 audio/prompt)")
+    def main(endpoint, model_name, api_key, data_root, audio_mode, single_audio):
+        if single_audio:
+            rec = next(r for r in loader_fn(data_root, subset=gate_subset)
+                       if len(r.audio_paths) == 1)
+        else:
+            rec = loader_fn(data_root, subset=gate_subset, limit=1)[0]
+        print(f"using audio: {[os.path.basename(p) for p in rec.audio_paths]} (mode={audio_mode})")
+        audio_parts = audio_content_parts(rec.audio_paths, mode=audio_mode)
+        lm = OpenAICompatibleLanguageModel(endpoint=endpoint, api_key=api_key, model_name=model_name)
+
+        async def _run():
+            try:
+                g1 = await _gate1(lm, audio_parts)
+                g2 = await _gate2(lm, audio_parts)
+            finally:
+                await lm.close()
+            print(f"\nRESULT: {json.dumps({'gate1_logprobs': g1, 'gate2_continue': g2})}")
+            if not g1:
+                print("GATE 1 failed -> self-certainty needs the fallback ladder before runs.")
+
+        asyncio.run(_run())
+
+    return main
+
+
+main = make_cli()
 
 
 if __name__ == "__main__":

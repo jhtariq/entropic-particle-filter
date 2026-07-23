@@ -242,29 +242,49 @@ def _build_score_report(rows) -> str:
     return "\n".join(lines)
 
 
-@click.command()
-@click.option("--endpoint", required=True)
-@click.option("--model-name", required=True)
-@click.option("--api-key", default="NO_API_KEY")
-@click.option("--data-root", default="/home/exx/inference-time-scaling/mmau_pro_testmini")
-@click.option("--subset", type=click.Choice(list(SUBSET_FILES)), default="le30s")
-@click.option("--audio-root", default=None,
-              help="root for relative audio paths when they live outside --data-root "
-                   "(e.g. mmau_pro_audio/ for the test subsets)")
-@click.option("--select", "select_mode", type=click.Choice(["smallest", "stratified", "all"]), default="smallest")
-@click.option("--methods", default=None,
-              help="comma list of prompt numbers to run (default: all 9), e.g. 4,5,7,9")
-@click.option("--ids", default=None, help="comma list of unique_ids to run exactly (overrides --select/--limit)")
-@click.option("--limit", type=int, default=None, help="cap number of items (default: all for the chosen --select)")
-@click.option("--audio-mode", type=click.Choice(["local-path", "base64"]), default="base64")
-@click.option("--max-tokens", default=700)
-@click.option("--concurrency", default=6)
-@click.option("--jsonl", "jsonl_path", default=None, help="resumable per-row stream (recommended for big runs)")
-@click.option("--csv", "csv_path", default=None, help="write per-(method,item) responses to this CSV")
-@click.option("--log", "log_path", default=None, help="also tee the score/metric tables to this file")
-def main(endpoint, model_name, api_key, data_root, subset, audio_root, select_mode, methods, ids,
-         limit, audio_mode, max_tokens, concurrency, jsonl_path, csv_path, log_path):
-    recs = load_mmau_mcq(data_root, subset=subset, audio_root=audio_root)
+def make_cli(loader_fn=load_mmau_mcq, subset_choices=SUBSET_FILES,
+             default_data_root="/home/exx/inference-time-scaling/mmau_pro_testmini",
+             default_subset="le30s"):
+    """Build the compare CLI bound to a benchmark loader.
+
+    Defaults reproduce the original MMAU-Pro CLI exactly; other benchmarks
+    instantiate their own `main` with their loader + subset registry
+    (see benchmarking/mmar/cot_compare.py).
+    """
+
+    @click.command()
+    @click.option("--endpoint", required=True)
+    @click.option("--model-name", required=True)
+    @click.option("--api-key", default="NO_API_KEY")
+    @click.option("--data-root", default=default_data_root)
+    @click.option("--subset", type=click.Choice(list(subset_choices)), default=default_subset)
+    @click.option("--audio-root", default=None,
+                  help="root for relative audio paths when they live outside --data-root "
+                       "(e.g. mmau_pro_audio/ for the test subsets)")
+    @click.option("--select", "select_mode", type=click.Choice(["smallest", "stratified", "all"]), default="smallest")
+    @click.option("--methods", default=None,
+                  help="comma list of prompt numbers to run (default: all 9), e.g. 4,5,7,9")
+    @click.option("--ids", default=None, help="comma list of unique_ids to run exactly (overrides --select/--limit)")
+    @click.option("--limit", type=int, default=None, help="cap number of items (default: all for the chosen --select)")
+    @click.option("--audio-mode", type=click.Choice(["local-path", "base64"]), default="base64")
+    @click.option("--max-tokens", default=700)
+    @click.option("--concurrency", default=6)
+    @click.option("--jsonl", "jsonl_path", default=None, help="resumable per-row stream (recommended for big runs)")
+    @click.option("--csv", "csv_path", default=None, help="write per-(method,item) responses to this CSV")
+    @click.option("--log", "log_path", default=None, help="also tee the score/metric tables to this file")
+    def main(endpoint, model_name, api_key, data_root, subset, audio_root, select_mode, methods, ids,
+             limit, audio_mode, max_tokens, concurrency, jsonl_path, csv_path, log_path):
+        _run_compare(loader_fn, endpoint, model_name, api_key, data_root, subset, audio_root,
+                     select_mode, methods, ids, limit, audio_mode, max_tokens, concurrency,
+                     jsonl_path, csv_path, log_path)
+
+    return main
+
+
+def _run_compare(loader_fn, endpoint, model_name, api_key, data_root, subset, audio_root,
+                 select_mode, methods, ids, limit, audio_mode, max_tokens, concurrency,
+                 jsonl_path, csv_path, log_path):
+    recs = loader_fn(data_root, subset=subset, audio_root=audio_root)
     method_list = [int(x) for x in methods.split(",")] if methods else list(METHODS)
     unknown = [m for m in method_list if m not in METHODS]
     if unknown:
@@ -365,6 +385,9 @@ def main(endpoint, model_name, api_key, data_root, subset, audio_root, select_mo
             f.write("category mix: " + ", ".join(f"{c}:{n}" for c, n in sorted(cat_counts.items())) + "\n\n")
             f.write(score_report + "\n\n" + chunk_table + "\n")
         print(f"wrote tables -> {log_path}", flush=True)
+
+
+main = make_cli()
 
 
 if __name__ == "__main__":

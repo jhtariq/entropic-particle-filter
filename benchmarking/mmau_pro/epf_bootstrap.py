@@ -20,6 +20,7 @@ import csv
 import html
 import json
 import math
+import os
 from collections import defaultdict
 
 import click
@@ -221,7 +222,8 @@ its prompt <b>and</b> signal are checked and its metric is selected.</p>
 """
 
 
-def build_model_section(label, stats, n_boot, n_items, n_graded, sub_m, checks, sec):
+def build_model_section(label, stats, n_boot, n_items, n_graded, sub_m, checks, sec,
+                        plotlyjs=True):
     """One model's block: header + headline + interactive plot + per-prompt tables."""
     methods = [m for m in PROMPT_ORDER if m in {k[0] for k in stats}]
     signals = sorted({k[1] for k in stats})
@@ -250,7 +252,8 @@ def build_model_section(label, stats, n_boot, n_items, n_graded, sub_m, checks, 
         f"<span class='s1'>±{mean_s100:.3f}</span> on average, but the reported full-set numbers are "
         f"precise to <span class='se'>±{mean_se957:.3f}</span> (~{mean_s100/mean_se957:.1f}&times; tighter).</p>",
         "<p class='meta'>Validation vs closed form (binomial ± FPC): " + "; ".join(checks) + "</p>",
-        build_plot_block(stats, n_graded, sec=sec, include_plotlyjs=(sec == 0)),
+        build_plot_block(stats, n_graded, sec=sec,
+                         include_plotlyjs=(plotlyjs if sec == 0 else False)),
     ]
     for m in methods:
         out.append(f"<h2>P{m} — {html.escape(NAMES[m])}</h2>")
@@ -271,7 +274,7 @@ def build_model_section(label, stats, n_boot, n_items, n_graded, sub_m, checks, 
     return "\n".join(out)
 
 
-def build_html(sections, n_boot, sub_m):
+def build_html(sections, n_boot, sub_m, plotlyjs=True):
     """`sections` = list of (label, stats, n_items, n_graded, checks)."""
     out = [
         "<!doctype html><html><head><meta charset='utf-8'>",
@@ -282,7 +285,7 @@ def build_html(sections, n_boot, sub_m):
     ]
     for sec, (label, stats, n_items, n_graded, checks) in enumerate(sections):
         out.append(build_model_section(label, stats, n_boot, n_items, n_graded,
-                                       sub_m, checks, sec))
+                                       sub_m, checks, sec, plotlyjs=plotlyjs))
     out.append("</body></html>")
     return "\n".join(out)
 
@@ -333,7 +336,12 @@ def compute_section(in_path, n_boot, sub_m, seed):
 @click.option("--n", "n_boot", default=10000, help="number of bootstrap resamples")
 @click.option("--subsample", "sub_m", default=100, help="subsample size (questions) for std100")
 @click.option("--seed", default=0)
-def main(in_specs, out_path, n_boot, sub_m, seed):
+@click.option("--plotlyjs", type=click.Choice(["inline", "directory", "cdn"]), default="inline",
+              help="how the ~4.8 MB plotly.js library reaches the page: 'inline' = embedded "
+                   "(single-file HTML, big + slow to reload), 'directory' = written once as "
+                   "plotly.min.js beside --out (small HTML, browser-cacheable; the sidecar must "
+                   "travel with the HTML), 'cdn' = loaded from the internet at view time")
+def main(in_specs, out_path, n_boot, sub_m, seed, plotlyjs):
     sections = []
     for spec in in_specs:
         label, sep, path = spec.partition("=")
@@ -343,8 +351,16 @@ def main(in_specs, out_path, n_boot, sub_m, seed):
         stats, n_items, n_graded, checks = compute_section(path, n_boot, sub_m, seed)
         sections.append((label, stats, n_items, n_graded, checks))
 
+    mode = {"inline": True, "directory": "directory", "cdn": "cdn"}[plotlyjs]
     with open(out_path, "w") as f:
-        f.write(build_html(sections, n_boot, sub_m))
+        f.write(build_html(sections, n_boot, sub_m, plotlyjs=mode))
+    if plotlyjs == "directory":
+        import plotly.offline
+        js_path = os.path.join(os.path.dirname(os.path.abspath(out_path)), "plotly.min.js")
+        if not os.path.exists(js_path):
+            with open(js_path, "w") as f:
+                f.write(plotly.offline.get_plotlyjs())
+        print(f"plotly.js sidecar: {js_path}")
     n_cells = sum(len(s[1]) for s in sections)
     print(f"wrote {out_path}  ({len(sections)} section(s), {n_cells} cells, n={n_boot})")
 

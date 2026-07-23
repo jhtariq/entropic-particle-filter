@@ -1,7 +1,7 @@
 import copy
 import logging
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 import numpy as np
@@ -22,6 +22,9 @@ class ParticleFilteringResult(AbstractScalingResult):
     log_weights_lst: list[float]
     selected_index: int
     steps_used_lst: list[int]
+    # final Particle objects (lineage steps + per-step weights/signals); None unless
+    # the caller needs trajectory-level introspection — adds memory, so opt-in only
+    particles: list | None = None
 
     @property
     def the_one(self) -> dict:
@@ -33,6 +36,9 @@ class Particle:
     steps: list[str]
     is_stopped: bool
     partial_log_weights: list[float]  # Store aggregated log weights until each step
+    # raw per-step logprob summaries ({mean_logprob, entropy, num_tokens}) in lineage
+    # order — kept alongside the transformed weights for trajectory introspection
+    partial_signals: list[dict] = field(default_factory=list)
 
     @property
     def log_weight(self) -> float:
@@ -47,6 +53,7 @@ class Particle:
             steps=copy.deepcopy(self.steps),
             is_stopped=self.is_stopped,
             partial_log_weights=copy.deepcopy(self.partial_log_weights),
+            partial_signals=copy.deepcopy(self.partial_signals),
         )
 
 
@@ -215,6 +222,7 @@ class ParticleFiltering(AbstractScalingAlgorithm):
             p.steps.append(next_step)
             p.is_stopped = step_is_stopped
             p.partial_log_weights.append(self._self_certainty_logweight(summary))
+            p.partial_signals.append({k: summary.get(k) for k in ("mean_logprob", "entropy", "num_tokens")})
             i += 1
 
         return particles
@@ -352,6 +360,7 @@ class ParticleFiltering(AbstractScalingAlgorithm):
             log_weights_lst=log_weights,
             selected_index=selected_index,
             steps_used_lst=[len(p.steps) for p in particles],
+            particles=particles,
         )
 
         return result.the_one if return_response_only else result

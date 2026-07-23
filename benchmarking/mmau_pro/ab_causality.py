@@ -33,64 +33,78 @@ def _strip_audio(messages: list[ChatMessage]) -> list[ChatMessage]:
     return out
 
 
-@click.command()
-@click.option("--endpoint", required=True)
-@click.option("--model-name", required=True)
-@click.option("--api-key", default="NO_API_KEY")
-@click.option("--data-root", default="/home/exx/inference-time-scaling/mmau_pro_testmini")
-@click.option("--limit", default=15)
-@click.option("--max-tokens", default=512)
-@click.option("--method", default=0,
-              help="prompt builder: 0 = terse build_messages (default), else a build(method) id")
-@click.option("--single-audio", is_flag=True, default=False,
-              help="only single-audio items (models capped at 1 audio/prompt)")
-def main(endpoint, model_name, api_key, data_root, limit, max_tokens, method, single_audio):
-    if single_audio:
-        records = [r for r in load_mmau_mcq(data_root, subset="le30s")
-                   if len(r.audio_paths) == 1][:limit]
-    else:
-        records = load_mmau_mcq(data_root, subset="le30s", limit=limit)
-    lm = OpenAICompatibleLanguageModel(endpoint=endpoint, api_key=api_key, model_name=model_name)
+def make_cli(loader_fn=load_mmau_mcq,
+             default_data_root="/home/exx/inference-time-scaling/mmau_pro_testmini",
+             subset="le30s"):
+    """Build the A/B causality CLI bound to a benchmark loader.
 
-    async def _one(messages):
-        resp = await lm.agenerate_single(messages, max_tokens=max_tokens, temperature=0.0)
-        return extract_content_from_lm_response(resp)
+    Defaults reproduce the original MMAU-Pro CLI exactly; other benchmarks
+    instantiate their own `main` (see benchmarking/mmar/ab_causality.py).
+    """
 
-    async def _run():
-        w_correct = wo_correct = changed = gradeable = 0
-        try:
-            for rec in records:
-                if method:
-                    msgs, _ = build(method, rec, audio_mode="base64")
-                else:
-                    msgs = build_messages(rec, audio_mode="base64")
-                with_txt = await _one(msgs)
-                without_txt = await _one(_strip_audio(msgs))
-                cw = is_correct(with_txt, rec.choices, rec.answer_index)
-                co = is_correct(without_txt, rec.choices, rec.answer_index)
-                pi_w = predicted_index(with_txt, rec.choices)
-                pi_o = predicted_index(without_txt, rec.choices)
-                if cw is None:
-                    continue
-                gradeable += 1
-                w_correct += int(bool(cw))
-                wo_correct += int(bool(co))
-                changed += int(pi_w != pi_o)
-                print(
-                    f"[{rec.category:12s}] with={'OK ' if cw else 'x  '}(pick {pi_w}) "
-                    f"without={'OK ' if co else 'x  '}(pick {pi_o}) gold={rec.answer_index} "
-                    f":: {rec.question[:60]}"
-                )
-        finally:
-            await lm.close()
-        print("\n=== A/B causality summary ===")
-        print(f"  gradeable items     : {gradeable}")
-        print(f"  acc WITH audio      : {w_correct}/{gradeable} = {w_correct / max(gradeable,1):.3f}")
-        print(f"  acc WITHOUT audio   : {wo_correct}/{gradeable} = {wo_correct / max(gradeable,1):.3f}")
-        print(f"  answers changed     : {changed}/{gradeable}")
-        print("  (audio-present should be higher & many answers should change => model hears it)")
+    @click.command()
+    @click.option("--endpoint", required=True)
+    @click.option("--model-name", required=True)
+    @click.option("--api-key", default="NO_API_KEY")
+    @click.option("--data-root", default=default_data_root)
+    @click.option("--limit", default=15)
+    @click.option("--max-tokens", default=512)
+    @click.option("--method", default=0,
+                  help="prompt builder: 0 = terse build_messages (default), else a build(method) id")
+    @click.option("--single-audio", is_flag=True, default=False,
+                  help="only single-audio items (models capped at 1 audio/prompt)")
+    def main(endpoint, model_name, api_key, data_root, limit, max_tokens, method, single_audio):
+        if single_audio:
+            records = [r for r in loader_fn(data_root, subset=subset)
+                       if len(r.audio_paths) == 1][:limit]
+        else:
+            records = loader_fn(data_root, subset=subset, limit=limit)
+        lm = OpenAICompatibleLanguageModel(endpoint=endpoint, api_key=api_key, model_name=model_name)
 
-    asyncio.run(_run())
+        async def _one(messages):
+            resp = await lm.agenerate_single(messages, max_tokens=max_tokens, temperature=0.0)
+            return extract_content_from_lm_response(resp)
+
+        async def _run():
+            w_correct = wo_correct = changed = gradeable = 0
+            try:
+                for rec in records:
+                    if method:
+                        msgs, _ = build(method, rec, audio_mode="base64")
+                    else:
+                        msgs = build_messages(rec, audio_mode="base64")
+                    with_txt = await _one(msgs)
+                    without_txt = await _one(_strip_audio(msgs))
+                    cw = is_correct(with_txt, rec.choices, rec.answer_index)
+                    co = is_correct(without_txt, rec.choices, rec.answer_index)
+                    pi_w = predicted_index(with_txt, rec.choices)
+                    pi_o = predicted_index(without_txt, rec.choices)
+                    if cw is None:
+                        continue
+                    gradeable += 1
+                    w_correct += int(bool(cw))
+                    wo_correct += int(bool(co))
+                    changed += int(pi_w != pi_o)
+                    print(
+                        f"[{rec.category:12s}] with={'OK ' if cw else 'x  '}(pick {pi_w}) "
+                        f"without={'OK ' if co else 'x  '}(pick {pi_o}) gold={rec.answer_index} "
+                        f":: {rec.question[:60]}"
+                    )
+            finally:
+                await lm.close()
+            print("\n=== A/B causality summary ===")
+            print(f"  gradeable items     : {gradeable}")
+            print(f"  acc WITH audio      : {w_correct}/{gradeable} = {w_correct / max(gradeable,1):.3f}")
+            print(f"  acc WITHOUT audio   : {wo_correct}/{gradeable} = {wo_correct / max(gradeable,1):.3f}")
+            print(f"  answers changed     : {changed}/{gradeable}")
+            print("  (audio-present should be higher & many answers should change => model hears it)")
+
+        asyncio.run(_run())
+
+    return main
+
+
+main = make_cli()
 
 
 if __name__ == "__main__":

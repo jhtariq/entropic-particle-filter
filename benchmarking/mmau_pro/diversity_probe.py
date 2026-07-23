@@ -223,52 +223,75 @@ def build_report(rows) -> str:
     return "\n".join(lines)
 
 
-@click.command()
-@click.option("--endpoints", default="http://localhost:8100/v1,http://localhost:8101/v1",
-              help="comma list of vLLM endpoints; items round-robin across them (both GPUs)")
-@click.option("--model-name", required=True)
-@click.option("--api-key", default="NO_API_KEY")
-@click.option("--data-root", default="/home/exx/inference-time-scaling/mmau_pro_testmini")
-@click.option("--subset", type=click.Choice(list(SUBSET_FILES)), default="full",
-              help="parquet subset: full = testmini (957 MCQ), test = the FULL test set (5,090 MCQ)")
-@click.option("--audio-root", default=None,
-              help="root for relative audio paths when they live outside --data-root "
-                   "(e.g. mmau_pro_audio/ for the test subset)")
-@click.option("--prompts", default="4,5,7,9", help="comma list of prompt methods")
-@click.option("--signals", default="mean_logprob,entropy", help="comma list of self-certainty signals")
-@click.option("--budgets", default="1,8,16,32")
-@click.option("--temp", default=0.8)
-@click.option("--ess-threshold", default=0.6)
-@click.option("--early-phase", default=0.7)
-@click.option("--max-steps", default=6)
-@click.option("--step-token", default="\n\n",
-              help=r"generation/resampling boundary (default blank line; pass $'\n' for "
-                   "line-per-step prompts like P9 — raise --max-steps accordingly)")
-@click.option("--stop-regex", default=None,
-              help=r"stop a trajectory when a step matches this regex INSTEAD of the "
-                   r"'Answer:' substring (e.g. 'Answer:\s*(\\boxed\{)?\(?[A-K]\b' to only "
-                   "stop on letter-final answers, not prose sub-answers)")
-@click.option("--stop-on-repeat", is_flag=True, default=False,
-              help="kill a trajectory whose new step repeats an earlier one modulo "
-                   "digits/case/whitespace (guards degenerate sub-question loops)")
-@click.option("--max-tokens-per-step", default=300)
-@click.option("--limit", default=100, help="# items (stratified single-audio, or first-N for --select all)")
-@click.option("--select", "select_mode", type=click.Choice(["stratified", "all"]), default="stratified",
-              help="stratified = single-audio stratified to --limit; all = every MCQ (incl. multi-audio)")
-@click.option("--max-inflight", default=64, help="target concurrent requests PER endpoint")
-@click.option("--jsonl", "jsonl_path", default=None)
-@click.option("--csv", "csv_path", default=None)
-@click.option("--log", "log_path", default=None)
-def main(endpoints, model_name, api_key, data_root, subset, audio_root, prompts, signals,
-         budgets, temp, ess_threshold, early_phase, max_steps, step_token, stop_regex,
-         stop_on_repeat, max_tokens_per_step, limit, select_mode, max_inflight,
-         jsonl_path, csv_path, log_path):
+def make_cli(loader_fn=load_mmau_mcq, subset_choices=SUBSET_FILES,
+             default_data_root="/home/exx/inference-time-scaling/mmau_pro_testmini",
+             default_subset="full",
+             subset_help="parquet subset: full = testmini (957 MCQ), test = the FULL test set (5,090 MCQ)"):
+    """Build the probe CLI bound to a benchmark loader.
+
+    Defaults reproduce the original MMAU-Pro CLI exactly; other benchmarks
+    instantiate their own `main` with their loader + subset registry
+    (see benchmarking/mmar/diversity_probe.py).
+    """
+
+    @click.command()
+    @click.option("--endpoints", default="http://localhost:8100/v1,http://localhost:8101/v1",
+                  help="comma list of vLLM endpoints; items round-robin across them (both GPUs)")
+    @click.option("--model-name", required=True)
+    @click.option("--api-key", default="NO_API_KEY")
+    @click.option("--data-root", default=default_data_root)
+    @click.option("--subset", type=click.Choice(list(subset_choices)), default=default_subset,
+                  help=subset_help)
+    @click.option("--audio-root", default=None,
+                  help="root for relative audio paths when they live outside --data-root "
+                       "(e.g. mmau_pro_audio/ for the test subset)")
+    @click.option("--prompts", default="4,5,7,9", help="comma list of prompt methods")
+    @click.option("--signals", default="mean_logprob,entropy", help="comma list of self-certainty signals")
+    @click.option("--budgets", default="1,8,16,32")
+    @click.option("--temp", default=0.8)
+    @click.option("--ess-threshold", default=0.6)
+    @click.option("--early-phase", default=0.7)
+    @click.option("--max-steps", default=6)
+    @click.option("--step-token", default="\n\n",
+                  help=r"generation/resampling boundary (default blank line; pass $'\n' for "
+                       "line-per-step prompts like P9 — raise --max-steps accordingly)")
+    @click.option("--stop-regex", default=None,
+                  help=r"stop a trajectory when a step matches this regex INSTEAD of the "
+                       r"'Answer:' substring (e.g. 'Answer:\s*(\\boxed\{)?\(?[A-K]\b' to only "
+                       "stop on letter-final answers, not prose sub-answers)")
+    @click.option("--stop-on-repeat", is_flag=True, default=False,
+                  help="kill a trajectory whose new step repeats an earlier one modulo "
+                       "digits/case/whitespace (guards degenerate sub-question loops)")
+    @click.option("--max-tokens-per-step", default=300)
+    @click.option("--limit", default=100, help="# items (stratified single-audio, or first-N for --select all)")
+    @click.option("--select", "select_mode", type=click.Choice(["stratified", "all"]), default="stratified",
+                  help="stratified = single-audio stratified to --limit; all = every MCQ (incl. multi-audio)")
+    @click.option("--max-inflight", default=64, help="target concurrent requests PER endpoint")
+    @click.option("--jsonl", "jsonl_path", default=None)
+    @click.option("--csv", "csv_path", default=None)
+    @click.option("--log", "log_path", default=None)
+    def main(endpoints, model_name, api_key, data_root, subset, audio_root, prompts, signals,
+             budgets, temp, ess_threshold, early_phase, max_steps, step_token, stop_regex,
+             stop_on_repeat, max_tokens_per_step, limit, select_mode, max_inflight,
+             jsonl_path, csv_path, log_path):
+        _run_probe(loader_fn, endpoints, model_name, api_key, data_root, subset, audio_root,
+                   prompts, signals, budgets, temp, ess_threshold, early_phase, max_steps,
+                   step_token, stop_regex, stop_on_repeat, max_tokens_per_step, limit,
+                   select_mode, max_inflight, jsonl_path, csv_path, log_path)
+
+    return main
+
+
+def _run_probe(loader_fn, endpoints, model_name, api_key, data_root, subset, audio_root,
+               prompts, signals, budgets, temp, ess_threshold, early_phase, max_steps,
+               step_token, stop_regex, stop_on_repeat, max_tokens_per_step, limit,
+               select_mode, max_inflight, jsonl_path, csv_path, log_path):
     eps = [e.strip() for e in endpoints.split(",") if e.strip()]
     methods = [int(m) for m in prompts.split(",")]
     sigs = [s.strip() for s in signals.split(",") if s.strip()]
     buds = [int(b) for b in budgets.split(",")]
 
-    recs = load_mmau_mcq(data_root, subset=subset, audio_root=audio_root)
+    recs = loader_fn(data_root, subset=subset, audio_root=audio_root)
     records = _select_all(recs, limit) if select_mode == "all" else _select_items_stratified(recs, limit)
     cat_mix = Counter(r.category for r in records)
     print(f"EPF diversity probe: prompts={methods} signals={sigs} budgets={buds} "
@@ -364,6 +387,9 @@ def main(endpoints, model_name, api_key, data_root, subset, audio_root, prompts,
                     f"systematic resampling, style=logit\n\n")
             f.write(report + "\n")
         print(f"wrote report -> {log_path}", flush=True)
+
+
+main = make_cli()
 
 
 if __name__ == "__main__":

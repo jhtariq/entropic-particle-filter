@@ -156,6 +156,21 @@ answer_index`). If the benchmark is lettered-MCQ, reuse `scoring.py` unchanged; 
 builders (they're benchmark-agnostic: audio parts + "Question/Options" text). Precompute
 `answer_index` with `match_answer_index` at load time.
 
+**Multi-benchmark note (July 2026):** `benchmarking/mmar/` is now the second, worked example of
+this contract. What transferred as-is: the serving template (§3), gates (§4), concurrency rules
+and the budget-staged driver pattern (§7/§9). What did NOT transfer — every benchmark needs its
+own: data paths/subset names, ungradeable count (MMAR: 4/1,000 vs the 24/5,090 above), quirks
+(MMAR: free-text answers, variable 2–6 choice counts with 171 binary items, 45 malformed
+timestamps, one CJK item whose choices collapse under `normalize()` — its loader prefers the
+verbatim index), and cost anchors (measure with a smoke cell; MMAR b8 ≈ 0.31 s/item P4 / 0.13
+P5). Mechanically: the four GPU runners (`diversity_probe`, `cot_compare`, `phase0_gate`,
+`ab_causality`) expose a `make_cli(loader_fn=..., subset_choices=..., default_data_root=...,
+default_subset=...)` factory whose defaults reproduce the MMAU-Pro CLIs byte-for-byte (pinned by
+`tests/test_mmar.py`); a new benchmark writes ONE loader emitting `MCQRecord`s plus ~10-line
+wrapper modules — see `benchmarking/mmar/README.md`. Elsewhere in this guide, where it says "the
+benchmark", read "MMAU-Pro": the §5 quirks, §9 anchors and §12 E1/E3 expected outputs are
+MMAU-Pro facts, not general truths.
+
 ## 6. Algorithms & canonical experiment configuration
 
 Both algorithms step-generate with `StepGeneration(step_token="\n\n", stop_token="Answer:",
