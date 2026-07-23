@@ -3,10 +3,12 @@
 # Identical to serve_gemma4_e2b.sh except the model and the PORT BASE: E4B uses
 # 8200+gpu so both models can be served simultaneously on disjoint GPUs.
 #
-# usage:    scripts/serve_gemma4_e4b.sh <gpu 0|1|...>       # port = 8200 + gpu
+# usage:    scripts/serve_gemma4_e4b.sh <gpu 0|1|...>       # port = PORT_BASE + gpu (default base 8210)
 # detached: nohup setsid scripts/serve_gemma4_e4b.sh 0 > serve_e4b_gpu0.log 2>&1 &
-# health:   curl -s http://localhost:820<gpu>/v1/models
+# health:   curl -s http://localhost:$((PORT_BASE + gpu))/v1/models
 # stop:     kill by PID (pgrep -af '[v]llm serve' first) — never pkill -f.
+# override PORT_BASE if it collides with another job's servers on the same node
+# (port numbers are a shared, non-namespaced resource even across separate SLURM jobs).
 #
 # The serving env MUST carry the gemma4 batched-audio patch (architecture-level,
 # same one as E2B):  <serving-env>/bin/python scripts/patch_vllm_gemma4.py
@@ -14,7 +16,8 @@
 # client-side (the committed <=30 s ids), nothing to configure here.
 set -euo pipefail
 GPU="${1:?usage: serve_gemma4_e4b.sh <gpu-index>}"
-PORT=$((8200 + GPU))
+PORT_BASE="${PORT_BASE:-8210}"
+PORT=$((PORT_BASE + GPU))
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GEMMA_VLLM="${GEMMA_VLLM:-/home/tariqvrh4/miniconda3/envs/gemmaserve/bin/vllm}"
 HF_HOME="${HF_HOME:-/home/tariqvrh4/hf_cache}"

@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Serve google/gemma-4-E2B-it with vLLM on one GPU (Run 14).
 #
-# usage:    scripts/serve_gemma4_e2b.sh <gpu 0|1>          # port = 8100 + gpu
+# usage:    scripts/serve_gemma4_e2b.sh <gpu 0|1>          # port = PORT_BASE + gpu (default base 8110)
 # detached: mkdir -p benchmarking/mmau_pro/results/run14_gemma4e2b
 #           nohup setsid scripts/serve_gemma4_e2b.sh 0 \
 #             > benchmarking/mmau_pro/results/run14_gemma4e2b/serve_gpu0.log 2>&1 &
-# health:   curl -s http://localhost:810<gpu>/v1/models
+# health:   curl -s http://localhost:$((PORT_BASE + gpu))/v1/models
+# override PORT_BASE if it collides with another job's servers on the same node
+# (port numbers are a shared, non-namespaced resource even across separate SLURM jobs).
 # stop:     kill by PID (pgrep -af '[v]llm serve' first) — NEVER `pkill -f "vllm serve"`,
 #           it matches your own shell (SETUP_GUIDE §10.3).
 #
@@ -30,7 +32,8 @@
 # vllm 0.22.1 + transformers 5.13); see RESULTS.md §20 and RUN14_COLLAB.md.
 set -euo pipefail
 GPU="${1:?usage: serve_gemma4_e2b.sh <gpu-index>}"
-PORT=$((8100 + GPU))
+PORT_BASE="${PORT_BASE:-8110}"
+PORT=$((PORT_BASE + GPU))
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Override these for your machine (defaults = the original Run-14 box):
 GEMMA_VLLM="${GEMMA_VLLM:-/home/tariqvrh4/miniconda3/envs/gemmaserve/bin/vllm}"
