@@ -83,6 +83,17 @@ def extract_letter(text: str, num_choices: int) -> int | None:
         c = m.group(1)
         if c in valid and _is_option_token(m, text):
             return valid.index(c)
+    # 3) LAST RESORT: a native option token opening a line — "c) India", "a)ijing".
+    #    Mellow answers in its training format, lowercase and with the option text
+    #    often absent or garbled, so neither rule 2 (uppercase-only by design) nor
+    #    predicted_index's choice-text fallback fires: MMSU Run 4 parsed 0/16 items
+    #    before this rule and 16/16 after. Anchored to a line start so a lowercase
+    #    "a)" inside prose can never trigger it, and placed last so it only ever
+    #    rescues text that every earlier rule left unparsed.
+    for m in reversed(list(re.finditer(r"(?m)^[ \t]*\(?([A-Ka-k])\)", text))):
+        c = m.group(1).upper()
+        if c in valid:
+            return valid.index(c)
     return None
 
 

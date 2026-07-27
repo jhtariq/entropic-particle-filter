@@ -49,6 +49,22 @@ def test_extract_letter_pronoun_i_and_article_a_not_mistaken_for_options():
     assert extract_letter("Answer: (I).", 11) == 8
 
 
+def test_extract_letter_native_option_token_opening_a_line():
+    """Rule 3: Mellow answers in its training format — a lowercase option token,
+    often with the choice text absent or garbled ('c) ... ', 'a)ijing'). MMSU Run 4
+    parsed 0/16 items before this rule and 16/16 after."""
+    assert extract_letter("c) ... ", 4) == 2
+    assert extract_letter("a)ijing ", 4) == 0
+    assert extract_letter("d) ... Woodish ", 4) == 3
+    assert extract_letter("C) India", 4) == 2
+    assert extract_letter("c) out of range", 2) is None
+    # anchored to a line start: a lowercase option token inside prose must NOT fire
+    assert extract_letter("the a) option is a distractor and b) too", 4) is None
+    # and it is a LAST resort — every earlier rule still wins
+    assert extract_letter("a) foo\nAnswer: B", 4) == 1
+    assert extract_letter("a) foo\n\\boxed{D}", 4) == 3
+
+
 def test_predicted_index_letter_then_text_fallback():
     choices = ["piano", "violin", "drums"]
     assert predicted_index("Answer: B", choices) == 1

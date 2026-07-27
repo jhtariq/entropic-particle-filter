@@ -87,11 +87,16 @@ def main(data_root, subset):
             c[str(v)] = c.get(str(v), 0) + 1
         print(f"{label} mix: {_mix(c)}")
 
-    # duration stats: soundfile if available (MMSU ships no timestamp fallback)
+    # duration + channel stats: soundfile if available (MMSU ships no timestamp fallback)
+    chans = {}
     try:
         import soundfile as sf
 
-        durs = sorted(sum(sf.info(p).duration for p in r.audio_paths) for r in recs if not missing)
+        infos = [[sf.info(p) for p in r.audio_paths] for r in recs] if not missing else []
+        durs = sorted(sum(i.duration for i in per_rec) for per_rec in infos)
+        for per_rec in infos:
+            for i in per_rec:
+                chans[i.channels] = chans.get(i.channels, 0) + 1
         src = "soundfile"
     except ImportError:
         durs = []
@@ -107,6 +112,9 @@ def main(data_root, subset):
         print(f"length_type buckets: {_mix(buckets)}")
     else:
         print(f"durations: {src}")
+    # channel mix (reference box: 4550 mono + 450 stereo) — the shim and vLLM both
+    # downmix, so stereo is not an error, but a shifted count means a different copy
+    print(f"channel mix [{src}]: {_mix(chans) if chans else src}")
 
     ok = len(recs) == expect_records and gradeable == expect_gradeable and not missing
     print(f"\nVERIFY {'PASS' if ok else 'FAIL'}")
