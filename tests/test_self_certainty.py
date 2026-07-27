@@ -127,6 +127,26 @@ def test_invalid_self_certainty_options_raise():
         ParticleFiltering(sg=sg, self_certainty_style="bogus")
 
 
+def test_uniform_weights_forces_constant_logweight():
+    """Random-survival ablation: uniform_weights=True makes every step's log-weight 0.0
+    (flat) regardless of the logprob summary, so softmax is uniform and ESS is pinned at B.
+    Default (False) leaves the mean_logprob/entropy weighting untouched."""
+    confident = {"mean_logprob": -0.05, "entropy": 0.1, "num_tokens": 8}
+    # default weighting gives a real, nonzero log-weight for a confident step
+    assert _pf("mean_logprob", "logit")._self_certainty_logweight(confident) != 0.0
+    # uniform_weights forces 0.0 regardless of signal, on both PF and EPF
+    for sig in ("mean_logprob", "entropy"):
+        pf = ParticleFiltering(sg=StepGeneration(step_token="\n", max_steps=3),
+                               self_certainty_signal=sig, uniform_weights=True)
+        assert pf._self_certainty_logweight(confident) == 0.0
+        epf = EntropicParticleFiltering(sg=StepGeneration(step_token="\n", max_steps=3),
+                                        self_certainty_signal=sig, uniform_weights=True)
+        assert epf._self_certainty_logweight(confident) == 0.0
+    # backward-compat: the flag defaults to False
+    assert ParticleFiltering(sg=StepGeneration(step_token="\n", max_steps=3)).uniform_weights is False
+    assert EntropicParticleFiltering(sg=StepGeneration(step_token="\n", max_steps=3)).uniform_weights is False
+
+
 def test_missing_logprobs_get_neutral_weight_not_max():
     """Regression: a step with no logprob signal (num_tokens == 0) must get a
     NEUTRAL log-weight (0.0), not the maximum weight from treating the 0.0

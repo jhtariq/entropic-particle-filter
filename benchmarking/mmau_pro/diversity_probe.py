@@ -127,6 +127,25 @@ def build_epf(signal, temp, max_steps, ess_threshold, early_phase, step_token="\
               stop_regex=None, stop_on_repeat=False):
     sg = StepGeneration(step_token=step_token, stop_token="Answer:", max_steps=max_steps,
                         temperature=temp, stop_regex=stop_regex, stop_on_repeat=stop_on_repeat)
+    if signal == "random":
+        # Random-survival ablation: uniform particle weights (ESS pinned at B, so the
+        # entropic annealing never fires) + MULTINOMIAL resampling (systematic with equal
+        # weights is a degenerate no-death identity) => genuine random death/duplication.
+        # Final answer = SAMPLE (a uniform-random survivor), since ARGMAX over equal
+        # weights degenerates to always picking particle 0. self_certainty_signal is set
+        # to a valid value only to satisfy the constructor validator; uniform_weights
+        # makes it inert. Every other knob matches the weighted arms.
+        return EntropicParticleFiltering(
+            sg=sg,
+            resampling_method="multinomial",
+            final_response_selection="sample",
+            temperature_method="ess",
+            ess_threshold=ess_threshold,
+            early_phase=early_phase,
+            self_certainty_signal="mean_logprob",
+            self_certainty_style="logit",
+            uniform_weights=True,
+        )
     return EntropicParticleFiltering(
         sg=sg,
         resampling_method="systematic",
