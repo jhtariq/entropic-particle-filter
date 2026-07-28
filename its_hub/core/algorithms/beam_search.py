@@ -59,8 +59,15 @@ class BeamSearch(AbstractScalingAlgorithm):
         prompt: str,
         tools: list[dict] | None = None,
         tool_choice: str | dict | None = None,
+        base_messages: list[ChatMessage] | None = None,
+        score_target: ChatMessages | None = None,
     ) -> list[Path]:
-        """search one level asynchronously"""
+        """search one level asynchronously
+
+        ``base_messages``/``score_target`` carry structured (e.g. audio) content
+        to the generator and the reward model respectively; when None, the
+        flattened ``prompt`` string is used as before.
+        """
         is_stopped_in_the_beginning = [c.is_stopped for c in candidates]
 
         # collect batch inputs
@@ -73,7 +80,12 @@ class BeamSearch(AbstractScalingAlgorithm):
 
         # collect batch outputs
         sg_forward_results = await self.sg.aforward(
-            lm, prompts, steps_so_far, tools=tools, tool_choice=tool_choice
+            lm,
+            prompts,
+            steps_so_far,
+            tools=tools,
+            tool_choice=tool_choice,
+            base_messages=base_messages,
         )
 
         # update candidates
@@ -95,7 +107,7 @@ class BeamSearch(AbstractScalingAlgorithm):
 
         # collect batch outputs for scoring
         scores = await self.prm.ascore(
-            prompt,
+            score_target if score_target is not None else prompt,
             [
                 self.sg._post_process(steps_so_far_per_prompt, stopped=True)
                 for steps_so_far_per_prompt in steps_so_far
@@ -149,14 +161,21 @@ class BeamSearch(AbstractScalingAlgorithm):
             Path(steps=[], is_stopped=False, score=0) for _ in range(num_beams)
         ]
 
+        # structured (e.g. audio) content cannot survive to_prompt() flattening,
+        # so carry the original messages to both the generator and the PRM
+        has_nontext = chat_messages.has_nontext_content()
+        base_messages = chat_messages.base_user_messages() if has_nontext else None
+        score_target = chat_messages if has_nontext else None
+
         while not all(c.is_stopped for c in candidates):
-            # TODO: Update _asearch_one_level to support native ChatMessages format instead of string conversion
             candidates = await self._asearch_one_level(
                 lm,
                 candidates,
                 chat_messages.to_prompt(),
                 tools=tools,
                 tool_choice=tool_choice,
+                base_messages=base_messages,
+                score_target=score_target,
             )
 
             # get the top beam_width candidates

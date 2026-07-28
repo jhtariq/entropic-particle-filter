@@ -174,7 +174,7 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
         # helper method to prepare request data for both sync and async methods
         # Convert dict messages to Message objects if needed
         messages = [
-            msg if isinstance(msg, ChatMessage) else ChatMessage(**msg)
+            msg if isinstance(msg, ChatMessage) else ChatMessage.from_dict(msg)
             for msg in messages
         ]
 

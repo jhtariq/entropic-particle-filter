@@ -110,8 +110,14 @@ class StepGeneration:
         steps_so_far: list[str] | list[list[str]] | None = None,
         tools: list[dict] | None = None,
         tool_choice: str | dict | None = None,
+        base_messages: list[ChatMessage] | None = None,
     ) -> tuple[str, bool] | list[tuple[str, bool]]:
-        """generate next step(s) asynchronously"""
+        """generate next step(s) asynchronously
+
+        When ``base_messages`` is provided it is used verbatim as the
+        conversation base (e.g. a user turn carrying audio/image content parts)
+        instead of building a text-only user message from the prompt string.
+        """
         if steps_so_far is None:
             steps_so_far = []
         is_single_prompt = isinstance(prompt_or_prompts, str)
@@ -120,9 +126,12 @@ class StepGeneration:
             current_step = len(steps_so_far) + 1
             logging.info("Generating step %s/%s", current_step, self.max_steps)
 
-            messages = [
-                ChatMessage(role="user", content=prompt),
-            ]
+            if base_messages is not None:
+                messages = list(base_messages)
+            else:
+                messages = [
+                    ChatMessage(role="user", content=prompt),
+                ]
             if steps_so_far:
                 messages.append(
                     ChatMessage(
@@ -155,9 +164,13 @@ class StepGeneration:
 
             messages_lst = []
             for prompt, steps_so_far_per_prompt in zip(prompts, steps_so_far):
-                messages = [
-                    ChatMessage(role="user", content=prompt),
-                ]
+                if base_messages is not None:
+                    # the same base (e.g. audio user turn) is shared by all beams
+                    messages = list(base_messages)
+                else:
+                    messages = [
+                        ChatMessage(role="user", content=prompt),
+                    ]
                 if steps_so_far_per_prompt:
                     messages.append(
                         ChatMessage(
@@ -196,8 +209,11 @@ class StepGeneration:
         steps_so_far: list[str] | list[list[str]] | None = None,
         tools: list[dict] | None = None,
         tool_choice: str | dict | None = None,
+        base_messages: list[ChatMessage] | None = None,
     ) -> tuple[str, bool] | list[tuple[str, bool]]:
         """generate next step(s) synchronously"""
         return asyncio.run(
-            self.aforward(lm, prompt_or_prompts, steps_so_far, tools, tool_choice)
+            self.aforward(
+                lm, prompt_or_prompts, steps_so_far, tools, tool_choice, base_messages
+            )
         )
