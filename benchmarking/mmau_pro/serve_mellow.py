@@ -303,6 +303,7 @@ class MellowEngine:
         single_audio_fill: str = "silence",
         use_kv_cache: bool = True,
         waveform_cache_size: int = 64,
+        prefix_cache_size: int = 0,
     ):
         self.code_dir = code_dir
         self.variant = variant
@@ -315,6 +316,15 @@ class MellowEngine:
         self._wav_cache: dict = {}
         self._wav_cache_order: list = []
         self._wav_cache_size = waveform_cache_size
+        # Audio-prefix cache (off unless --prefix-cache > 0). PF/EPF sends `budget`
+        # particles per item, all sharing the SAME audio and prompt, so the HTSAT
+        # encode and the 389-token prefill are recomputed identically B times per
+        # step: measured 13.6 ms encode + 15.0 ms prefill of a ~73 ms request, i.e.
+        # ~39% pure duplication (~1.6x). Both are deterministic under inference_mode,
+        # so replaying them is bit-identical -- see run17/validate_shim.py parity.
+        self._pfx_cache: dict = {}
+        self._pfx_cache_order: list = []
+        self._pfx_cache_size = prefix_cache_size
         self.model = None
 
     # -- loading -----------------------------------------------------------------
@@ -432,6 +442,58 @@ class MellowEngine:
             self._wav_cache.pop(old, None)
         return wav
 
+    def _ref_key(self, ref: AudioRef):
+        """Stable identity for one audio clip (same scheme as the waveform cache)."""
+        import hashlib
+
+        if ref.kind == "file":
+            st = os.stat(ref.path)
+            return (ref.path, st.st_mtime_ns, st.st_size)
+        return ("b64", hashlib.sha1(ref.data).hexdigest())
+
+    def _clone_past(self, past):
+        """Deep-copy a KV cache so the cached prefill is never mutated by decoding.
+
+        Copies tensors rather than sharing them: generation appends to the cache in
+        place, so a shared object would corrupt the next particle's prefix.
+        """
+        import copy
+
+        return copy.deepcopy(past)
+
+    def _prefix_entry(self, req, model, lm, input_ids):
+        """(prefix_embeds, prefill_past, prefill_logits) for the audio+prompt prefix.
+
+        Cached per (audio clips, prompt) when --prefix-cache > 0; the returned KV is
+        always a private clone, so callers may decode into it freely.
+        """
+        import torch
+
+        key = (tuple(self._ref_key(r) for r in req.audio_refs),
+               self.single_audio_fill, req.prompt_text, self.max_text_tokens)
+        hit = self._pfx_cache.get(key) if self._pfx_cache_size else None
+        if hit is None:
+            a1, a2 = self._audio_slots(req.audio_refs)
+            d = {
+                "audio1": torch.from_numpy(a1).unsqueeze(0).to(self.device),
+                "audio2": torch.from_numpy(a2).unsqueeze(0).to(self.device),
+                "input": {"input_ids": input_ids.to(self.device)},
+            }
+            prefix, _, _ = model.generate_prefix_inference(d)
+            out = lm(inputs_embeds=prefix, use_cache=self.use_kv_cache)
+            past = out.past_key_values if self.use_kv_cache else None
+            logits = out.logits[0, -1, :]
+            if self._pfx_cache_size:
+                self._pfx_cache[key] = (prefix, past, logits)
+                self._pfx_cache_order.append(key)
+                if len(self._pfx_cache_order) > self._pfx_cache_size:
+                    self._pfx_cache.pop(self._pfx_cache_order.pop(0), None)
+                hit = self._pfx_cache[key]
+            else:
+                return prefix, past, logits
+        prefix, past, logits = hit
+        return prefix, (self._clone_past(past) if past is not None else None), logits
+
     def _audio_slots(self, audio_refs: list[AudioRef]):
         import numpy as np
 
@@ -515,25 +577,18 @@ class MellowEngine:
         model, tokenizer = self.model, self.tokenizer
         lm = model.caption_decoder.lm
 
-        a1, a2 = self._audio_slots(req.audio_refs)
         input_ids = self._tokenize_prompt(req.prompt_text)
 
         with torch.inference_mode():
-            d = {
-                "audio1": torch.from_numpy(a1).unsqueeze(0).to(self.device),
-                "audio2": torch.from_numpy(a2).unsqueeze(0).to(self.device),
-                "input": {"input_ids": input_ids.to(self.device)},
-            }
-            prefix, _, _ = model.generate_prefix_inference(d)
+            # audio prefix + its prefill (cached across an item's particles when
+            # --prefix-cache > 0; identical work otherwise)
+            prefix, past, logits = self._prefix_entry(req, model, lm, input_ids)
 
             cont_ids: list[int] = []
             if req.continuation:
                 cont_ids = tokenizer(req.continuation, add_special_tokens=False)["input_ids"]
-                if cont_ids:
-                    cont_t = torch.tensor([cont_ids], dtype=torch.long, device=self.device)
-                    prefix = torch.cat((prefix, lm.model.embed_tokens(cont_t)), dim=1)
 
-            prompt_tokens = int(prefix.shape[1])
+            prompt_tokens = int(prefix.shape[1]) + len(cont_ids)
             want_lp = req.logprobs
             top_k = req.top_logprobs or 0
 
@@ -543,10 +598,22 @@ class MellowEngine:
             text = ""
             finish_reason = "length"
 
-            out = lm(inputs_embeds=prefix, use_cache=self.use_kv_cache)
-            past = out.past_key_values if self.use_kv_cache else None
-            logits = out.logits[0, -1, :]
-            generated = prefix if not self.use_kv_cache else None
+            generated = None
+            if cont_ids:
+                cont_t = torch.tensor([cont_ids], dtype=torch.long, device=self.device)
+                cont_embed = lm.model.embed_tokens(cont_t)
+                if self.use_kv_cache:
+                    # extend the (cached) prefix KV with the continuation
+                    out = lm(inputs_embeds=cont_embed, past_key_values=past, use_cache=True)
+                    past = out.past_key_values
+                    logits = out.logits[0, -1, :]
+                else:
+                    generated = torch.cat((prefix, cont_embed), dim=1)
+                    out = lm(inputs_embeds=generated)
+                    logits = out.logits[0, -1, :]
+            elif not self.use_kv_cache:
+                generated = prefix
+                logits = lm(inputs_embeds=generated).logits[0, -1, :]
 
             for _ in range(req.max_tokens):
                 tok, lp, top = self._sample_step(logits, req.temperature, req.top_p, want_lp, top_k)
@@ -673,11 +740,16 @@ def main():
     @click.option("--waveform-cache", default=64, type=int,
                   help="LRU size for fitted waveforms (~1.3 MB each; raise when the item "
                        "working set is small, e.g. subset test runs)")
+    @click.option("--prefix-cache", default=0, type=int,
+                  help="LRU size for cached audio-prefix encodes + their prefill KV, keyed by "
+                       "(audio, prompt). PF/EPF sends `budget` particles per item that share "
+                       "both, so this removes ~39%% of per-request work (~1.6x). Deterministic "
+                       "and bit-identical; 0 = OFF (the run17/MMAR reference behaviour)")
     @click.option("--pid-file", default=None,
                   help="write this process's PID here at startup (setsid-safe for kill-by-PID)")
     def cli(host, port, model_name, variant, revision, smollm2_revision, code_dir, device,
             max_text_tokens, single_audio_fill, allowed_media_root, default_max_tokens,
-            no_kv_cache, waveform_cache, pid_file):
+            no_kv_cache, waveform_cache, prefix_cache, pid_file):
         import uvicorn
 
         if pid_file:
@@ -694,6 +766,7 @@ def main():
             single_audio_fill=single_audio_fill,
             use_kv_cache=not no_kv_cache,
             waveform_cache_size=waveform_cache,
+            prefix_cache_size=prefix_cache,
         )
         print(f"[serve_mellow] loading {MELLOW_REPO}@{revision[:8]} variant={variant} on {device} ...")
         engine.load()
