@@ -36,6 +36,12 @@ family-dependent (tracks base competence, ~0.2 below Omni-7B's), MMAR again sits
 selection on P9" does NOT transfer (majority ≈ selected here). 15,728 rows, 0
 errors, ~3.7 h on one GPU.
 
+**b64/b128 extension (Runs 1+2, 2026-07-27/28):** oracle still climbing at 128
+particles — 7B 0.90–0.95, 3B 0.88–0.94 (size-invariance holds at every budget) —
+while selection stays flat from b8 through b128 on both sizes; the 3B's P5×entropy
+gap reaches **+0.47** (oracle 0.936, selected 0.467), the campaign's widest.
+Four doublings of compute bought ~0 selection. The selector is the whole game.
+
 **Run 5** (July 22, 2026) adds the fourth model / third family and the first
 LoRA-served audio path — Phi-4-multimodal-instruct (speech-LoRA), P4+P8 ×
 {mean_logprob, entropy} × b{1,8,16,32}, full 1,000-item set, single GPU (mmau_pro
@@ -136,6 +142,23 @@ Gates: phase0 PASS/PASS ×2 endpoints; A/B causality 0.80 with audio vs 0.27 wit
    letter back to choice text) agrees with our lettered scoring to +0.001…+0.007
    per cell (`crosscheck_b1.json`, `crosscheck_b32.json`).
 
+**b64/b128 extension (2026-07-27, same serving/knobs, staged inflight 64).**
+8,000 new rows, 0 errors (JSONL now 24,000 = 6 budgets × 4 cells × 1,000); b64
+3.3 h, b128 4.7 h on the GPU pair — b128 ran *sub*-linearly vs b64 (1.45×): in the
+one-item-per-endpoint regime vLLM absorbs the larger particle fan-out efficiently.
+
+| cell | b64 sel / orc / maj | b128 sel / orc / maj |
+|---|---|---|
+| P4 × mean_logprob | .577 / .909 / .608 | .578 / .946 / .618 |
+| P4 × entropy | .588 / .921 / .626 | .579 / .935 / .608 |
+| P5 × mean_logprob | .614 / .876 / .630 | .597 / .896 / .628 |
+| P5 × entropy | .612 / .895 / .630 | .614 / .922 / .627 |
+
+**Extension takeaway:** oracle has NOT saturated by b128 — it reaches 0.90–0.95
+and every doubling still buys coverage — while selected (and majority) have been
+flat since b8 through four consecutive doublings (.58–.61). Gap at b128:
+**+0.28…+0.37**. The selector wall stands at every budget measured.
+
 **Artifacts** (`results/run01_epf_grid/`): `mmar_run01.{jsonl,csv,log}`,
 `mmar_bootstrap.html` (10k-resample bootstrap; three sections — Runs 1+2+3),
 `screen40_p4579.*`, `smoke16/`, `audit_capacity.json`, `crosscheck_b{1,32}.json`,
@@ -213,6 +236,23 @@ weaker than the 7B's 0.80-vs-0.27, consistent with a smaller model leaning on pr
 5. **Scoring cross-check** at b32: official token-overlap agrees to +0.002…+0.006
    (`crosscheck_b32.json`).
 
+**b64/b128 extension (2026-07-27/28, same serving/knobs).** 8,000 new rows, 0
+errors (JSONL now 24,000); b64 3.1 h, b128 4.25 h on the GPU pair.
+
+| cell | b64 sel / orc / maj | b128 sel / orc / maj |
+|---|---|---|
+| P4 × mean_logprob | .544 / .896 / .551 | .537 / .927 / .560 |
+| P4 × entropy | .550 / .913 / .568 | .563 / .928 / .574 |
+| P5 × mean_logprob | .548 / .887 / .563 | .505 / .877 / .542 |
+| P5 × entropy | .514 / .925 / .549 | .467 / .936 / .514 |
+
+**Extension takeaway:** oracle size-invariance holds all the way to b128 — the 3B
+reaches 0.88–0.94, matching the 7B's coverage — while its selection sits ~5–10 pp
+below the 7B and even drifts DOWN on P5×entropy (.514 → .467 from b64 to b128,
+oracle 0.936): gap **+0.47**, the widest measured anywhere in the campaign on
+either benchmark. Exploration is model-size-free; selection is not, and more
+particles can actively hurt a weak selector.
+
 **Artifacts** (`results/run02_omni3b/`): `mmar_run02.{jsonl,csv,log}`,
 `screen40_p4579.*` (P7/P9 breakage documentation), `smoke16/`,
 `audit_capacity.json`, `crosscheck_b32.json`, `servers/`, `stages.log`. Combined
@@ -282,6 +322,26 @@ tok/s; max prompt 834 ≪ 8,192−1,800).
 5. **Music is the weakest modality for the third model in a row** (.401 sel /
    .612 oracle @b32) — a benchmark-level regularity, not an Omni artifact.
 6. Official-scorer cross-check @b32: +0.002…+0.008 (`crosscheck_b32.json`).
+
+**b64/b128 extension (2026-07-28, dual-GPU, same knobs).** b64 COMPLETE (2.9 h,
+3,932 rows, 0 errors). **b128 PARTIAL — stopped early by user decision** to free
+the GPUs for the Run 5 extension: P4×both-signals and P9×mean_logprob completed
+(983/983 clean each); P9×entropy stopped at 477/983. Partial-cell numbers are NOT
+directly comparable (n differs); complete b128 later by rerunning
+`run_ext_b64128.sh config_run03_b64128.sh` with `BUDGETS="128"` (resume-safe; the
+1,518 error rows appended by the post-stop retry sweeps are auto-retried).
+
+| cell | b64 sel / orc / maj (n=979) | b128 sel / orc / maj |
+|---|---|---|
+| P4 × mean_logprob | .474 / .701 / .479 | .477 / .731 / .479 |
+| P4 × entropy | .467 / .724 / .483 | .483 / .752 / .490 |
+| P9 × mean_logprob | .496 / .724 / .492 | .490 / .750 / .502 |
+| P9 × entropy | .490 / .746 / .494 | (partial n=477: .508 / .792 / .519) |
+
+**Extension takeaway:** same shape at the lower family ceiling — selected flat
+(.47–.50 since b8), oracle still climbing at b128 (.73–.75 on complete cells,
++2.6…+3.0 pp over b64) but ~0.2 below the Omni models' coverage at every budget:
+the family-dependent ceiling persists through b128.
 
 **Artifacts** (`results/run03_qwen2audio_le30s/`): `mmar_run03.{jsonl,csv,log}`,
 `screen40_p4579.*`, `smoke16/`, `audit_capacity.json`, `crosscheck_b32.json`,

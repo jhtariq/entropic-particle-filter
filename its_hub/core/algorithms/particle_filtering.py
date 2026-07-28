@@ -103,6 +103,7 @@ class ParticleFiltering(AbstractScalingAlgorithm):
         self_certainty_signal: str = "mean_logprob",
         self_certainty_style: str = "logit",
         top_logprobs: int | None = None,
+        uniform_weights: bool = False,
     ):
         if isinstance(final_response_selection, str):
             final_response_selection = SelectionMethod(final_response_selection)
@@ -128,6 +129,12 @@ class ParticleFiltering(AbstractScalingAlgorithm):
         self.self_certainty_signal = self_certainty_signal
         self.self_certainty_style = self_certainty_style
         self.top_logprobs = top_logprobs
+        # When True, every step's particle log-weight is forced to 0.0 (flat/uniform),
+        # so softmax gives 1/B, ESS is pinned at B, and EPF's entropic annealing never
+        # fires. Paired with resampling_method="multinomial" this yields genuine random
+        # survival (an ablation control); default False leaves self-certainty weighting
+        # untouched. See _self_certainty_logweight.
+        self.uniform_weights = uniform_weights
         self.max_steps = self.sg.max_steps
         self._warned_missing_logprobs = False
 
@@ -149,7 +156,13 @@ class ParticleFiltering(AbstractScalingAlgorithm):
         NEUTRAL log-weight of 0.0. Without this, the summarizer's 0.0 fallback for
         ``mean_logprob`` would read as *perfect* confidence and the signal-less
         particle would dominate every resampling round.
+
+        When ``uniform_weights`` is set (the random-survival ablation), every step
+        returns a constant 0.0 log-weight regardless of the logprob summary, so all
+        particles are equally weighted.
         """
+        if self.uniform_weights:
+            return 0.0
         if summary.get("num_tokens", 0) == 0:
             if not self._warned_missing_logprobs:
                 self._warned_missing_logprobs = True
@@ -385,6 +398,7 @@ class EntropicParticleFiltering(ParticleFiltering):
         self_certainty_signal: str = "mean_logprob",
         self_certainty_style: str = "logit",
         top_logprobs: int | None = None,
+        uniform_weights: bool = False,
     ):
         super().__init__(
             sg=sg,
@@ -393,6 +407,7 @@ class EntropicParticleFiltering(ParticleFiltering):
             self_certainty_signal=self_certainty_signal,
             self_certainty_style=self_certainty_style,
             top_logprobs=top_logprobs,
+            uniform_weights=uniform_weights,
         )
 
         if isinstance(temperature_method, str):
