@@ -39,13 +39,45 @@ inferences, and conclusions for this experiment line live here.
 
 <!-- One section per run; tables generated from results/<run>/{bon,beam}.log -->
 
-### smoke10_qwen-omni (plumbing gate)
+### smoke10_qwen-omni (plumbing gate — PASS, 2026-07-28)
 
-_pending_
+BoN b4 + Beam b8 on 10 stratified items, 0 errors, 350 judge calls, 100% JSON
+parse rate. Manual sanity call: the judge's reasoning named the audio content
+unprompted ("the audio contains a bird call"), ranked a correct candidate above
+a wrong one, and gave 0/10 to a fabricated "I hear music" step on a bird clip —
+the judge verifiably hears the clip. Capacity audit (audit_judge.json): longest
+30 clips ≤ 1443 prompt tokens vs 32768 context, 25.1 audio tok/s — AUDIT PASS.
 
-### smoke100_qwen-omni (sanity gate vs Run 1 EPF anchors)
+**Rubric escalation**: the original 0-10 rubric produced argmax ties on 8/10
+items (7/10 with tied-top candidates disagreeing on the letter → order-based
+pick). Switched to 0-100 with anti-round-number instructions: ties 6/10,
+harmful 5/10 on the same items. All later runs use 0-100.
 
-_pending_
+### smoke100_qwen-omni (sanity gate — PASS, 2026-07-28)
+
+100 stratified items (seed 0), policy = judge = Qwen2.5-Omni-7B (self-judging,
+disclosed), P4, temp 0.8 policy / 0.0 judge, 0-100 rubric. 400 rows, 0 errors,
+3,466 judge calls, 100% parse.
+
+| alg  | b | sel_acc | sel_tb | oracle | major | notes |
+|------|---|---------|--------|--------|-------|-------|
+| bon  | 1 | 0.540 | 0.540 | 0.540 | 0.540 | greedy baseline (no judge calls) |
+| bon  | 4 | 0.530 | 0.560 | 0.760 | 0.560 | |
+| bon  | 8 | 0.540 | 0.540 | 0.880 | 0.540 | |
+| beam | 8 | 0.520 | 0.530 | 0.660 | 0.530 | distinct 0.381 (beam collapses diversity) |
+
+- b1 = 0.540 is consistent with the Run 1 EPF anchor (b1 sel ≈ 0.55-0.60 on the
+  full set). Sanity band met; judge selection is NOT anti-correlated (gate: pass).
+- **Oracle scales (0.54 → 0.76 → 0.88) but judge selection is flat (~0.53-0.54)**
+  — the external audio judge replicates the selector-is-the-bottleneck verdict
+  from the EPF self-certainty runs, on its first outing.
+- Judge discrimination exists but is weak: mean score of correct candidates
+  0.846 vs wrong 0.774 (b4); 0.838 vs 0.789 (b8).
+- Ties at n=100: 72-74% raw, but only 23-28% harmful (tied-top disagreeing);
+  majority-among-tied (sel_tb) recovers +3pp at b4 (0.56, = majority voting).
+- Beam vs BoN at the same b=8: beam oracle 0.66 vs BoN 0.88 — step-level
+  pruning discards diversity (distinct 0.381 vs 1.0), the classic early-pruning
+  failure the Rollout Roulette paper attributes to deterministic search.
 
 ### full_qwen-omni
 
@@ -53,13 +85,16 @@ _pending_
 
 ## Judge-quality analysis
 
-_pending — from JSONL traces: score distribution, parse rate, tie rate,
-mean judge score of correct vs incorrect candidates, step-score trajectories._
+From smoke100 traces: 100% strict-JSON parse over 3,466 calls; final-score
+distribution clusters high (85/90/95 favored) with full 0-95 range used on beam
+steps; step scores do flag bad paths (0/20 tails). Judge temp 0.0. Remaining
+weakness: top-cluster ties (see above) — candidate fixes if it matters at full
+scale: pairwise/tournament judging, or ranking prompts instead of absolute scores.
 
 ## Inferences
 
-_pending_
+_pending (full run)_
 
 ## Conclusions
 
-_pending_
+_pending (full run)_
