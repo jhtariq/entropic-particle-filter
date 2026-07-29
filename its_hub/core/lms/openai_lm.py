@@ -170,6 +170,8 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
         tools: list[dict] | None = None,
         tool_choice: str | dict | None = None,
         response_format: dict | None = None,
+        logprobs: bool = False,
+        top_logprobs: int | None = None,
     ) -> dict:
         # helper method to prepare request data for both sync and async methods
         # Convert dict messages to Message objects if needed
@@ -235,6 +237,12 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
         # add response_format for structured outputs
         if response_format is not None:
             request_data["response_format"] = response_format
+
+        # request token logprobs (used e.g. for probability-based judge scoring)
+        if logprobs:
+            request_data["logprobs"] = True
+            if top_logprobs is not None:
+                request_data["top_logprobs"] = top_logprobs
 
         return request_data
 
@@ -388,6 +396,8 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
         tool_choice: str | dict | None = None,
         response_format: dict | None = None,
         loop: asyncio.AbstractEventLoop | None = None,
+        logprobs: bool = False,
+        top_logprobs: int | None = None,
     ) -> dict:
         # Fallback to the current event loop
         if loop is None:
@@ -414,6 +424,8 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
                 tools,
                 tool_choice,
                 response_format,
+                logprobs,
+                top_logprobs,
             )
 
             async with session.post(
@@ -430,6 +442,8 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
                 response_json = await response.json()
                 choice = response_json["choices"][0]
                 message = dict(choice["message"])
+                if choice.get("logprobs") is not None:
+                    message["_logprobs"] = choice["logprobs"]
                 if self.include_raw_choices:
                     message["_raw_choice"] = {
                         **choice,

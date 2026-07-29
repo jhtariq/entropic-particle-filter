@@ -79,6 +79,35 @@ disclosed), P4, temp 0.8 policy / 0.0 judge, 0-100 rubric. 400 rows, 0 errors,
   pruning discards diversity (distinct 0.381 vs 1.0), the classic early-pruning
   failure the Rollout Roulette paper attributes to deterministic search.
 
+### Scorer ablation: rubric vs P(Yes) vs G-Eval (offline re-judge, 2026-07-28)
+
+Controlled comparison on the SAME stored smoke100 candidates (b4: 400, b8: 800;
+`rejudge.py`): only the judge's scoring rule varies. pyes = P(Yes)/(P(Yes)+P(No))
+from first-token logprobs (GenRM-style); geval = E[digit]/9 over 0-9 token
+probabilities (G-Eval-style). Both 1 generated token, 100% parse, ~98%+ answer mass.
+
+| scorer | b | sel_acc | sel_tb | major | oracle | ties/100 | harmful | AUROC (pooled) |
+|--------|---|---------|--------|-------|--------|----------|---------|-------|
+| rubric | 4 | 0.53 | 0.56 | 0.56 | 0.76 | 72 | 23 | 0.573 |
+| rubric | 8 | 0.54 | 0.54 | 0.54 | 0.88 | 74 | 28 | |
+| pyes   | 4 | 0.56 | 0.56 | 0.56 | 0.76 | 5  | 1  | 0.559 |
+| pyes   | 8 | 0.52 | 0.52 | 0.54 | 0.88 | 11 | 1  | |
+| geval  | 4 | 0.53 | 0.53 | 0.56 | 0.76 | 0  | 0  | 0.591 |
+| geval  | 8 | 0.51 | 0.51 | 0.54 | 0.88 | 0  | 0  | |
+
+- **Clustering/ties: solved.** Distinct score values 15 → 208 (pyes) → 1039
+  (geval); harmful ties 23-28/100 → 0-1/100. The mechanism worked exactly as the
+  literature predicts.
+- **Accuracy: unchanged** (0.51-0.56 across all scorers ≈ greedy 0.54, far below
+  oracle). Removing discretization noise exposed the real bottleneck: the 7B
+  Omni judge's per-candidate discrimination is barely above chance —
+  **AUROC 0.56-0.59** (correct-vs-wrong candidates, n=1200). No re-scaling of a
+  ~0.57-AUROC signal can select well; the score FORMAT was never the binding
+  constraint.
+- Escalation paths if selection must improve: comparative judging
+  (listwise/pairwise — different judgment task, not a rescaling), a larger judge
+  (Qwen3-Omni-30B is cached on this machine), or ensembling.
+
 ### full_qwen-omni
 
 _pending_

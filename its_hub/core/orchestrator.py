@@ -77,6 +77,8 @@ class LMOrchestrator(AbstractOrchestrator):
         tools: list[dict] | None = None,
         tool_choice: str | dict | None = None,
         response_format: dict | None = None,
+        logprobs: bool = False,
+        top_logprobs: int | None = None,
     ) -> list[dict]:
         """
         Generate responses for a batch of messages asynchronously.
@@ -119,6 +121,13 @@ class LMOrchestrator(AbstractOrchestrator):
                 else contextlib.nullcontext()
             )
             async with ctx:
+                # only pass logprob kwargs when requested so LM implementations
+                # without logprob support keep working
+                extra = {}
+                if logprobs:
+                    extra["logprobs"] = True
+                    if top_logprobs is not None:
+                        extra["top_logprobs"] = top_logprobs
                 return await lm.agenerate_single(
                     messages,
                     stop=stop,
@@ -129,6 +138,7 @@ class LMOrchestrator(AbstractOrchestrator):
                     tool_choice=tool_choice,
                     response_format=response_format,
                     loop=current_loop,
+                    **extra,
                 )
 
         async with asyncio.TaskGroup() as tg:

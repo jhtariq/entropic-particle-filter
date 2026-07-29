@@ -227,6 +227,9 @@ def write_outputs(rows_by_key: dict, csv_path: str, log_path: str):
 @click.option("--step-token", default="\n\n", help="beam: step delimiter")
 @click.option("--stop-token", default="Answer:", help="beam: stop marker within a step")
 @click.option("--judge-max-tokens", default=256, show_default=True)
+@click.option("--judge-scoring", type=click.Choice(list(MMARAudioJudge.SCORING_MODES)),
+              default="rubric", show_default=True,
+              help="rubric: verbalized 0-100 JSON; pyes: P(Yes) from logprobs; geval: expected digit from logprobs")
 @click.option("--judge-max-candidate-chars", default=4000, show_default=True)
 @click.option("--judge-structured/--no-judge-structured", default=True,
               help="use strict-JSON response_format for judge calls")
@@ -241,8 +244,9 @@ def main(endpoints, model_name, judge_endpoint, judge_model_name, api_key, alg,
          budgets, beam_width, prompt_method, data_root, subset, audio_root,
          audio_mode, select_mode, limit, seed, max_inflight, policy_inflight,
          judge_inflight, temp, max_tokens, max_steps, step_token, stop_token,
-         judge_max_tokens, judge_max_candidate_chars, judge_structured,
-         store_responses, store_trace, jsonl_path, csv_path, log_path):
+         judge_max_tokens, judge_scoring, judge_max_candidate_chars,
+         judge_structured, store_responses, store_trace, jsonl_path, csv_path,
+         log_path):
     """Judge-scored BestOfN / BeamSearch over MMAR."""
     budget_list = [int(b) for b in str(budgets).split(",") if b.strip()]
     if prompt_method not in METHODS:
@@ -297,12 +301,16 @@ def main(endpoints, model_name, judge_endpoint, judge_model_name, api_key, alg,
                     ),
                     max_candidate_chars=judge_max_candidate_chars,
                     judge_max_tokens=judge_max_tokens,
+                    scoring=judge_scoring,
                 )
+                signal = (f"judge_{alg}" if judge_scoring == "rubric"
+                          else f"judge_{alg}_{judge_scoring}")
                 row = {
                     "unique_id": rec.unique_id, "category": rec.category,
                     "length_type": rec.length_type, "n_choices": len(rec.choices),
                     "method": prompt_method, "method_name": METHODS[prompt_method],
-                    "signal": f"judge_{alg}", "alg": alg, "budget": budget,
+                    "signal": signal, "scoring": judge_scoring,
+                    "alg": alg, "budget": budget,
                     "beam_width": beam_width if alg == "beam" else "",
                     "error": "",
                 }
