@@ -1,8 +1,9 @@
 """Audio-aware LLM-judge reward models for MMAR (Qwen2.5-Omni as the judge).
 
 The judge hears the SAME audio clip as the policy model and sees the question,
-the lettered options, and the candidate text; it returns a 0-10 score as strict
-JSON. Two thin adapters expose the shared core to its_hub's algorithms:
+the lettered options, and the candidate text; it returns a 0-100 score as
+strict JSON (a 0-10 rubric produced argmax ties on ~80% of items in smoke
+testing - the coarse scale could not separate same-answer candidates). Two thin adapters expose the shared core to its_hub's algorithms:
 
   - `AudioJudgeORM`  -> `BestOfN(orm=...)`: scores complete candidate responses.
   - `AudioJudgePRM`  -> `BeamSearch(sg, prm=...)`: scores PARTIAL reasoning
@@ -32,21 +33,25 @@ FINAL_RUBRIC_SYSTEM = (
     "You are grading a candidate answer to a multiple-choice question about an "
     "audio clip. Listen to the audio, read the question and the options, then "
     "score how likely the candidate's final choice is the CORRECT option, on a "
-    "0-10 scale (0 = certainly wrong, 5 = cannot tell, 10 = certainly correct). "
-    "Judge only against the audio evidence; well-written reasoning that "
-    "contradicts the audio scores low. "
-    'Return ONLY JSON: {"score": <number 0-10>, "reasoning": "<one or two sentences>"}.'
+    "0-100 scale (0 = certainly wrong, 50 = cannot tell, 100 = certainly "
+    "correct). Judge only against the audio evidence; well-written reasoning "
+    "that contradicts the audio scores low. Use the full 0-100 range to express "
+    "fine differences in confidence; do not default to round numbers like 80 - "
+    "pick the exact number that reflects your confidence (e.g. 73 or 86). "
+    'Return ONLY JSON: {"score": <number 0-100>, "reasoning": "<one or two sentences>"}.'
 )
 
 STEP_RUBRIC_SYSTEM = (
     "You are grading a PARTIAL, in-progress reasoning chain for a multiple-choice "
     "question about an audio clip. The reasoning may be unfinished and may not "
     "state a final answer yet - do not penalize it for being incomplete. Listen "
-    "to the audio, then score 0-10 how promising the reasoning is so far: is "
+    "to the audio, then score 0-100 how promising the reasoning is so far: is "
     "every claim consistent with what is actually audible, and is it on track "
     "toward the correct option? (0 = contradicts the audio or is heading to a "
-    "wrong answer, 10 = fully grounded in the audio and on track). "
-    'Return ONLY JSON: {"score": <number 0-10>, "reasoning": "<one or two sentences>"}.'
+    "wrong answer, 100 = fully grounded in the audio and on track). Use the full "
+    "0-100 range to express fine differences; do not default to round numbers "
+    "like 80 - pick the exact number that reflects your judgment (e.g. 73 or 86). "
+    'Return ONLY JSON: {"score": <number 0-100>, "reasoning": "<one or two sentences>"}.'
 )
 
 
@@ -72,7 +77,7 @@ class MMARAudioJudge:
         rec,
         orchestrator: LMOrchestrator,
         audio_mode: str = "local-path",
-        fallback_score: float = 5.0,
+        fallback_score: float = 50.0,
         response_format: dict | None = LLMJudge.SCORE_RESPONSE_FORMAT,
         max_candidate_chars: int = 4000,
         judge_max_tokens: int = 256,
@@ -139,7 +144,7 @@ class MMARAudioJudge:
         for text, response in zip(texts, responses):
             content = (response.get("content") or "") if isinstance(response, dict) else ""
             raw, parse_ok, reasoning = self._parse(content)
-            score = max(0.0, min(10.0, raw)) / 10.0
+            score = max(0.0, min(100.0, raw)) / 100.0
             scores.append(score)
             self.trace.append(
                 {

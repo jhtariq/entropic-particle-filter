@@ -40,6 +40,7 @@ from its_hub.core.reward_models.llm_judge import LLMJudge
 CSV_FIELDS = [
     "unique_id", "category", "length_type", "n_choices", "method", "method_name",
     "signal", "alg", "budget", "beam_width", "gold_letter", "selected_letter",
+    "selected_letter_tb", "selected_tb_correct",
     "majority_letter", "preds", "judge_scores", "judge_selected_score",
     "judge_parse_ok_ratio", "n_judge_calls", "steps_used", "distinct_ratio",
     "consensus", "parsed_ratio", "oracle_correct", "selected_correct",
@@ -64,10 +65,11 @@ def select_records(records, select: str, limit: int | None, seed: int):
     quotas = {c: len(by_cat[c]) * limit / len(records) for c in cats}
     counts = {c: max(1, int(quotas[c])) for c in cats}
     while sum(counts.values()) > limit:
-        c = max(cats, key=lambda c: counts[c] - quotas[c])
-        counts[c] = max(1, counts[c] - 1)
-        if all(counts[c] == 1 for c in cats):
+        over = [c for c in cats if counts[c] > 1]
+        if not over:
             break
+        c = max(over, key=lambda c: counts[c] - quotas[c])
+        counts[c] -= 1
     remainders = sorted(cats, key=lambda c: quotas[c] - int(quotas[c]), reverse=True)
     i = 0
     while sum(counts.values()) < limit:
@@ -88,6 +90,12 @@ def compute_metrics(result, rec) -> dict:
     non_none = [p for p in preds if p is not None]
     majority = Counter(non_none).most_common(1)[0][0] if non_none else None
 
+    # analysis-side variant: BestOfN argmax breaks score ties by candidate order;
+    # here ties are instead broken by majority vote among the tied-top candidates
+    top = max(result.scores)
+    tied_preds = [preds[i] for i, s in enumerate(result.scores) if s == top and preds[i] is not None]
+    sel_tb = Counter(tied_preds).most_common(1)[0][0] if tied_preds else preds[sel]
+
     def graded(pred):
         if rec.answer_index is None:
             return None
@@ -96,6 +104,8 @@ def compute_metrics(result, rec) -> dict:
     return {
         "gold_letter": _letter(rec.answer_index),
         "selected_letter": _letter(preds[sel]),
+        "selected_letter_tb": _letter(sel_tb),
+        "selected_tb_correct": graded(sel_tb),
         "majority_letter": _letter(majority),
         "preds": [_letter(p) for p in preds],
         "judge_scores": [round(s, 4) for s in result.scores],
@@ -139,7 +149,7 @@ def build_report(rows: list[dict]) -> str:
         if not r.get("error"):
             cells[(r["alg"], r["budget"])].append(r)
     lines.append(f"rows: {len(rows)} | errors: {n_errors}")
-    header = (f"{'alg':>5} {'bud':>4} {'sel_acc':>8} {'oracle':>7} {'major':>6} "
+    header = (f"{'alg':>5} {'bud':>4} {'sel_acc':>8} {'sel_tb':>7} {'oracle':>7} {'major':>6} "
               f"{'j_sel':>6} {'j_parse':>8} {'distinct':>8} {'consen':>7} {'parsed':>7} {'n':>5}")
     lines.append(header)
     for (alg, budget), cell in sorted(cells.items()):
@@ -154,8 +164,10 @@ def build_report(rows: list[dict]) -> str:
         distinct = sum(r.get("distinct_ratio") or 0 for r in gradeable) / len(gradeable)
         consen = sum(r.get("consensus") or 0 for r in gradeable) / len(gradeable)
         parsed = sum(r.get("parsed_ratio") or 0 for r in gradeable) / len(gradeable)
+        sel_tb = sum(bool(r.get("selected_tb_correct")) for r in gradeable) / len(gradeable)
         lines.append(
-            f"{alg:>5} {budget:>4} {acc('selected_correct'):>8.4f} {acc('oracle_correct'):>7.4f} "
+            f"{alg:>5} {budget:>4} {acc('selected_correct'):>8.4f} {sel_tb:>7.4f} "
+            f"{acc('oracle_correct'):>7.4f} "
             f"{acc('majority_correct'):>6.4f} {j_sel:>6.3f} {j_parse:>8.3f} "
             f"{distinct:>8.3f} {consen:>7.3f} {parsed:>7.3f} {len(gradeable):>5}"
         )
@@ -233,6 +245,8 @@ def main(endpoints, model_name, judge_endpoint, judge_model_name, api_key, alg,
          store_responses, store_trace, jsonl_path, csv_path, log_path):
     """Judge-scored BestOfN / BeamSearch over MMAR."""
     budget_list = [int(b) for b in str(budgets).split(",") if b.strip()]
+    if prompt_method not in METHODS:
+        raise click.UsageError(f"--prompt-method must be one of {sorted(METHODS)}")
     if alg == "beam":
         bad = [b for b in budget_list if b < beam_width or b % beam_width != 0]
         if bad:
@@ -263,7 +277,10 @@ def main(endpoints, model_name, judge_endpoint, judge_model_name, api_key, alg,
         max_concurrency=judge_inflight,
     )
     judge_orch = LMOrchestrator(max_concurrency=judge_inflight)
-    policy_orch = LMOrchestrator(max_concurrency=-1)  # bounded by LM max_concurrency
+    # BestOfN fans generations through this orchestrator and its path
+    # (agenerate_single) bypasses the LM-level max_concurrency semaphore, so the
+    # cap must live here; without it peak concurrency = max_inflight x budget.
+    policy_orch = LMOrchestrator(max_concurrency=policy_inflight)
 
     async def run_all():
         sem = asyncio.Semaphore(max_inflight)
