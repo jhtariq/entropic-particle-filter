@@ -1,0 +1,22 @@
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[64] items=5000
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+config: temp=0.8 ess_threshold=0.6 early_phase=0.7 step_token='\n\n' max_steps=6 systematic resampling, style=logit
+
+rows: 50000 | errors: 127
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.304   0.624   0.318    0.262   0.696   0.94    0.95 5000
+P10 native inline MCQ (Mello entropy       16    0.288   0.711   0.324    0.155   0.673   0.93    0.95 5000
+P10 native inline MCQ (Mello entropy       32    0.284   0.788   0.322    0.088   0.667   0.92    0.95 5000
+P10 native inline MCQ (Mello entropy       64    0.280   0.851   0.321    0.048   0.667   0.92    0.95 4935
+    -> @64: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.57) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  16    0.311   0.615   0.321    0.130   0.759   0.88    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  32    0.308   0.682   0.316    0.074   0.756   0.88    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  64    0.311   0.748   0.319    0.041   0.759   0.87    0.96 4938
+    -> @64: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.44) -> WEIGHT is the bottleneck

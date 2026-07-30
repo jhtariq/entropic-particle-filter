@@ -1,0 +1,727 @@
+=== stage b1 attempt 1 (2026-07-27 14:30:37) prompts=10 inflight=24 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[1] items=5000 endpoints=2
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+[P10 mean_logprob b1] 5000 to do (0 resumed) | per-endpoint conc=24
+WARNING:root:Generated step carried no token logprobs (endpoint may not support logprobs=true, or the request errored). Using a neutral particle weight; self-certainty weighting is degraded for affected steps.
+    done in 1320s (0.26s/item, 0 errors)
+[P10 entropy b1] 5000 to do (0 resumed) | per-endpoint conc=24
+WARNING:root:Generated step carried no token logprobs (endpoint may not support logprobs=true, or the request errored). Using a neutral particle weight; self-certainty weighting is degraded for affected steps.
+    done in 1269s (0.25s/item, 0 errors)
+
+wrote 10000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 10000 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+    -> @1: diversity present (distinct=0.94)
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+    -> @1: diversity present (distinct=0.95)
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10   mean_logprob b1          5000       0
+total errors (budget >= 0): 0
+stage b1: 10000/10000 clean keys, 0 errors
+=== stage b1 complete (2026-07-27 15:13:46) ===
+=== stage b8 attempt 1 (2026-07-27 15:13:46) prompts=10 inflight=32 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[8] items=5000 endpoints=2
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 10000 (item,method,signal,budget) already done
+[P10 mean_logprob b8] 5000 to do (0 resumed) | per-endpoint conc=4
+WARNING:root:Generated step carried no token logprobs (endpoint may not support logprobs=true, or the request errored). Using a neutral particle weight; self-certainty weighting is degraded for affected steps.
+=== stage b1 attempt 1 (2026-07-27 17:07:48) prompts=10 inflight=24 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[1] items=5000 endpoints=16
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 13751 (item,method,signal,budget) already done
+[P10 mean_logprob b1] 0 to do (5000 resumed) | per-endpoint conc=24
+[P10 entropy b1] 0 to do (5000 resumed) | per-endpoint conc=24
+
+wrote 13751 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 13751 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.317   0.544   0.324    0.220   0.766   0.88    0.94 3751
+    -> @8: diversity present (distinct=0.22); oracle>>selected (+0.23) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          3751       0
+total errors (budget >= 0): 0
+stage b1: 10000/10000 clean keys, 0 errors
+=== stage b1 complete (2026-07-27 17:07:49) ===
+=== stage b8 attempt 1 (2026-07-27 17:07:49) prompts=10 inflight=32 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[8] items=5000 endpoints=16
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 13751 (item,method,signal,budget) already done
+[P10 mean_logprob b8] 1249 to do (3751 resumed) | per-endpoint conc=4
+=== stage b1 attempt 1 (2026-07-27 17:12:03) prompts=10 inflight=24 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[1] items=5000 endpoints=20
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 13754 (item,method,signal,budget) already done
+[P10 mean_logprob b1] 0 to do (5000 resumed) | per-endpoint conc=24
+[P10 entropy b1] 0 to do (5000 resumed) | per-endpoint conc=24
+
+wrote 13754 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 13754 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.317   0.544   0.324    0.220   0.766   0.88    0.94 3754
+    -> @8: diversity present (distinct=0.22); oracle>>selected (+0.23) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          3754       0
+total errors (budget >= 0): 0
+stage b1: 10000/10000 clean keys, 0 errors
+=== stage b1 complete (2026-07-27 17:12:04) ===
+=== stage b8 attempt 1 (2026-07-27 17:12:04) prompts=10 inflight=32 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[8] items=5000 endpoints=20
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 13754 (item,method,signal,budget) already done
+[P10 mean_logprob b8] 1246 to do (3754 resumed) | per-endpoint conc=4
+    done in 1651s (1.32s/item, 34 errors)
+[P10 entropy b8] 5000 to do (0 resumed) | per-endpoint conc=4
+WARNING:root:Generated step carried no token logprobs (endpoint may not support logprobs=true, or the request errored). Using a neutral particle weight; self-certainty weighting is degraded for affected steps.
+    done in 3349s (0.67s/item, 108 errors)
+
+wrote 20000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 20000 | errors: 142
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.309   0.630   0.320    0.264   0.704   0.94    0.96 4892
+    -> @8: diversity present (distinct=0.26); oracle>>selected (+0.32) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.314   0.542   0.318    0.224   0.771   0.89    0.95 4966
+    -> @8: diversity present (distinct=0.22); oracle>>selected (+0.23) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000     108
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000      34
+total errors (budget >= 0): 142
+stage b8 attempt 1: error rows remain -> resume sweep
+=== stage b8 attempt 2 (2026-07-27 18:35:25) prompts=10 inflight=32 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[8] items=5000 endpoints=20
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 19858 (item,method,signal,budget) already done
+[P10 mean_logprob b8] 34 to do (4966 resumed) | per-endpoint conc=4
+    done in 890s (26.19s/item, 0 errors)
+[P10 entropy b8] 108 to do (4892 resumed) | per-endpoint conc=4
+    done in 1300s (12.04s/item, 58 errors)
+
+wrote 20000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 20000 | errors: 58
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.307   0.627   0.318    0.263   0.701   0.94    0.95 4942
+    -> @8: diversity present (distinct=0.26); oracle>>selected (+0.32) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+    -> @8: diversity present (distinct=0.22); oracle>>selected (+0.23) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000      58
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+total errors (budget >= 0): 58
+stage b8 attempt 2: error rows remain -> resume sweep
+=== stage b8 attempt 3 (2026-07-27 19:11:56) prompts=10 inflight=32 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[8] items=5000 endpoints=20
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 19942 (item,method,signal,budget) already done
+[P10 mean_logprob b8] 0 to do (5000 resumed) | per-endpoint conc=4
+[P10 entropy b8] 58 to do (4942 resumed) | per-endpoint conc=4
+    done in 1167s (20.12s/item, 34 errors)
+
+wrote 20000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 20000 | errors: 34
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.305   0.626   0.318    0.263   0.699   0.94    0.95 4966
+    -> @8: diversity present (distinct=0.26); oracle>>selected (+0.32) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+    -> @8: diversity present (distinct=0.22); oracle>>selected (+0.23) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000      34
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+total errors (budget >= 0): 34
+stage b8 attempt 3: error rows remain -> resume sweep
+FAILED: stage b8 incomplete after 3 attempts
+=== stage b1 attempt 1 (2026-07-27 20:07:10) prompts=10 inflight=24 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[1] items=5000 endpoints=12
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 19966 (item,method,signal,budget) already done
+[P10 mean_logprob b1] 0 to do (5000 resumed) | per-endpoint conc=24
+[P10 entropy b1] 0 to do (5000 resumed) | per-endpoint conc=24
+
+wrote 20000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 20000 | errors: 34
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.305   0.626   0.318    0.263   0.699   0.94    0.95 4966
+    -> @8: diversity present (distinct=0.26); oracle>>selected (+0.32) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+    -> @8: diversity present (distinct=0.22); oracle>>selected (+0.23) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000      34
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+total errors (budget >= 0): 34
+stage b1 attempt 1: error rows remain -> resume sweep
+=== stage b1 attempt 2 (2026-07-27 20:07:11) prompts=10 inflight=24 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[1] items=5000 endpoints=12
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 19966 (item,method,signal,budget) already done
+[P10 mean_logprob b1] 0 to do (5000 resumed) | per-endpoint conc=24
+[P10 entropy b1] 0 to do (5000 resumed) | per-endpoint conc=24
+
+wrote 20000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 20000 | errors: 34
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.305   0.626   0.318    0.263   0.699   0.94    0.95 4966
+    -> @8: diversity present (distinct=0.26); oracle>>selected (+0.32) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+    -> @8: diversity present (distinct=0.22); oracle>>selected (+0.23) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000      34
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+total errors (budget >= 0): 34
+stage b1 attempt 2: error rows remain -> resume sweep
+=== stage b1 attempt 3 (2026-07-27 20:07:12) prompts=10 inflight=24 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[1] items=5000 endpoints=12
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 19966 (item,method,signal,budget) already done
+[P10 mean_logprob b1] 0 to do (5000 resumed) | per-endpoint conc=24
+[P10 entropy b1] 0 to do (5000 resumed) | per-endpoint conc=24
+
+wrote 20000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 20000 | errors: 34
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.305   0.626   0.318    0.263   0.699   0.94    0.95 4966
+    -> @8: diversity present (distinct=0.26); oracle>>selected (+0.32) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+    -> @8: diversity present (distinct=0.22); oracle>>selected (+0.23) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000      34
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+total errors (budget >= 0): 34
+stage b1 attempt 3: error rows remain -> resume sweep
+FAILED: stage b1 incomplete after 3 attempts
+=== stage b1 attempt 1 (2026-07-27 20:09:43) prompts=10 inflight=24 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[1] items=5000 endpoints=12
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 19966 (item,method,signal,budget) already done
+[P10 mean_logprob b1] 0 to do (5000 resumed) | per-endpoint conc=24
+[P10 entropy b1] 0 to do (5000 resumed) | per-endpoint conc=24
+
+wrote 19966 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 19966 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.305   0.626   0.318    0.263   0.699   0.94    0.95 4966
+    -> @8: diversity present (distinct=0.26); oracle>>selected (+0.32) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+    -> @8: diversity present (distinct=0.22); oracle>>selected (+0.23) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          4966       0
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+total errors (budget >= 0): 0
+stage b1: 10000/10000 clean keys, 0 errors
+=== stage b1 complete (2026-07-27 20:09:44) ===
+=== stage b8 attempt 1 (2026-07-27 20:09:44) prompts=10 inflight=8 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[8] items=5000 endpoints=12
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 19966 (item,method,signal,budget) already done
+[P10 mean_logprob b8] 0 to do (5000 resumed) | per-endpoint conc=1
+[P10 entropy b8] 34 to do (4966 resumed) | per-endpoint conc=1
+    done in 1249s (36.74s/item, 0 errors)
+
+wrote 20000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 20000 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.304   0.624   0.318    0.262   0.696   0.94    0.95 5000
+    -> @8: diversity present (distinct=0.26); oracle>>selected (+0.32) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+    -> @8: diversity present (distinct=0.22); oracle>>selected (+0.23) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000       0
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+total errors (budget >= 0): 0
+stage b8: 10000/10000 clean keys, 0 errors
+=== stage b8 complete (2026-07-27 20:30:34) ===
+=== stage b16 attempt 1 (2026-07-27 20:30:34) prompts=10 inflight=8 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[16] items=5000 endpoints=12
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 20000 (item,method,signal,budget) already done
+[P10 mean_logprob b16] 5000 to do (0 resumed) | per-endpoint conc=1
+WARNING:root:Generated step carried no token logprobs (endpoint may not support logprobs=true, or the request errored). Using a neutral particle weight; self-certainty weighting is degraded for affected steps.
+=== stage b1 attempt 1 (2026-07-28 10:17:41) prompts=10 inflight=24 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[1] items=5000 endpoints=12
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 23736 (item,method,signal,budget) already done
+[P10 mean_logprob b1] 0 to do (5000 resumed) | per-endpoint conc=24
+[P10 entropy b1] 0 to do (5000 resumed) | per-endpoint conc=24
+
+wrote 23736 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 23736 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.304   0.624   0.318    0.262   0.696   0.94    0.95 5000
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  16    0.316   0.618   0.328    0.128   0.761   0.87    0.94 3736
+    -> @16: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.30) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000       0
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+P10   mean_logprob b16         3736       0
+total errors (budget >= 0): 0
+stage b1: 10000/10000 clean keys, 0 errors
+=== stage b1 complete (2026-07-28 10:17:42) ===
+=== stage b8 attempt 1 (2026-07-28 10:17:42) prompts=10 inflight=8 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[8] items=5000 endpoints=12
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 23736 (item,method,signal,budget) already done
+[P10 mean_logprob b8] 0 to do (5000 resumed) | per-endpoint conc=1
+[P10 entropy b8] 0 to do (5000 resumed) | per-endpoint conc=1
+
+wrote 23736 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 23736 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.304   0.624   0.318    0.262   0.696   0.94    0.95 5000
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  16    0.316   0.618   0.328    0.128   0.761   0.87    0.94 3736
+    -> @16: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.30) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000       0
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+P10   mean_logprob b16         3736       0
+total errors (budget >= 0): 0
+stage b8: 10000/10000 clean keys, 0 errors
+=== stage b8 complete (2026-07-28 10:17:43) ===
+=== stage b16 attempt 1 (2026-07-28 10:17:43) prompts=10 inflight=8 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[16] items=5000 endpoints=12
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 23736 (item,method,signal,budget) already done
+[P10 mean_logprob b16] 1264 to do (3736 resumed) | per-endpoint conc=1
+WARNING:root:Generated step carried no token logprobs (endpoint may not support logprobs=true, or the request errored). Using a neutral particle weight; self-certainty weighting is degraded for affected steps.
+=== stage b1 attempt 1 (2026-07-28 13:27:58) prompts=10 inflight=24 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[1] items=5000 endpoints=9
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 24801 (item,method,signal,budget) already done
+[P10 mean_logprob b1] 0 to do (5000 resumed) | per-endpoint conc=24
+[P10 entropy b1] 0 to do (5000 resumed) | per-endpoint conc=24
+
+wrote 24801 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 24801 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.304   0.624   0.318    0.262   0.696   0.94    0.95 5000
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  16    0.312   0.616   0.322    0.130   0.758   0.88    0.94 4801
+    -> @16: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.30) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000       0
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+P10   mean_logprob b16         4801       0
+total errors (budget >= 0): 0
+stage b1: 10000/10000 clean keys, 0 errors
+=== stage b1 complete (2026-07-28 13:27:59) ===
+=== stage b8 attempt 1 (2026-07-28 13:27:59) prompts=10 inflight=8 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[8] items=5000 endpoints=9
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 24801 (item,method,signal,budget) already done
+[P10 mean_logprob b8] 0 to do (5000 resumed) | per-endpoint conc=1
+[P10 entropy b8] 0 to do (5000 resumed) | per-endpoint conc=1
+
+wrote 24801 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 24801 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.304   0.624   0.318    0.262   0.696   0.94    0.95 5000
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  16    0.312   0.616   0.322    0.130   0.758   0.88    0.94 4801
+    -> @16: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.30) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000       0
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+P10   mean_logprob b16         4801       0
+total errors (budget >= 0): 0
+stage b8: 10000/10000 clean keys, 0 errors
+=== stage b8 complete (2026-07-28 13:28:00) ===
+=== stage b16 attempt 1 (2026-07-28 13:28:00) prompts=10 inflight=8 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[16] items=5000 endpoints=9
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 24801 (item,method,signal,budget) already done
+[P10 mean_logprob b16] 199 to do (4801 resumed) | per-endpoint conc=1
+    done in 353s (1.77s/item, 0 errors)
+[P10 entropy b16] 5000 to do (0 resumed) | per-endpoint conc=1
+WARNING:root:Generated step carried no token logprobs (endpoint may not support logprobs=true, or the request errored). Using a neutral particle weight; self-certainty weighting is degraded for affected steps.
+=== stage b1 attempt 1 (2026-07-28 15:52:58) prompts=10 inflight=24 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[1] items=5000 endpoints=9
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 29153 (item,method,signal,budget) already done
+[P10 mean_logprob b1] 0 to do (5000 resumed) | per-endpoint conc=24
+[P10 entropy b1] 0 to do (5000 resumed) | per-endpoint conc=24
+
+wrote 29153 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 29153 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.304   0.624   0.318    0.262   0.696   0.94    0.95 5000
+P10 native inline MCQ (Mello entropy       16    0.292   0.709   0.329    0.153   0.677   0.93    0.94 4153
+    -> @16: diversity present (distinct=0.15); oracle>>selected (+0.42) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  16    0.311   0.615   0.321    0.130   0.759   0.88    0.95 5000
+    -> @16: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.30) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000       0
+P10        entropy b16         4153       0
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+P10   mean_logprob b16         5000       0
+total errors (budget >= 0): 0
+stage b1: 10000/10000 clean keys, 0 errors
+=== stage b1 complete (2026-07-28 15:52:59) ===
+=== stage b8 attempt 1 (2026-07-28 15:52:59) prompts=10 inflight=8 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[8] items=5000 endpoints=9
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 29153 (item,method,signal,budget) already done
+[P10 mean_logprob b8] 0 to do (5000 resumed) | per-endpoint conc=1
+[P10 entropy b8] 0 to do (5000 resumed) | per-endpoint conc=1
+
+wrote 29153 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 29153 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.304   0.624   0.318    0.262   0.696   0.94    0.95 5000
+P10 native inline MCQ (Mello entropy       16    0.292   0.709   0.329    0.153   0.677   0.93    0.94 4153
+    -> @16: diversity present (distinct=0.15); oracle>>selected (+0.42) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  16    0.311   0.615   0.321    0.130   0.759   0.88    0.95 5000
+    -> @16: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.30) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000       0
+P10        entropy b16         4153       0
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+P10   mean_logprob b16         5000       0
+total errors (budget >= 0): 0
+stage b8: 10000/10000 clean keys, 0 errors
+=== stage b8 complete (2026-07-28 15:53:00) ===
+=== stage b16 attempt 1 (2026-07-28 15:53:00) prompts=10 inflight=8 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[16] items=5000 endpoints=9
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 29153 (item,method,signal,budget) already done
+[P10 mean_logprob b16] 0 to do (5000 resumed) | per-endpoint conc=1
+[P10 entropy b16] 847 to do (4153 resumed) | per-endpoint conc=1
+    done in 5016s (5.92s/item, 0 errors)
+
+wrote 30000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 30000 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.304   0.624   0.318    0.262   0.696   0.94    0.95 5000
+P10 native inline MCQ (Mello entropy       16    0.288   0.711   0.324    0.155   0.673   0.93    0.95 5000
+    -> @16: diversity present (distinct=0.16); oracle>>selected (+0.42) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  16    0.311   0.615   0.321    0.130   0.759   0.88    0.95 5000
+    -> @16: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.30) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000       0
+P10        entropy b16         5000       0
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+P10   mean_logprob b16         5000       0
+total errors (budget >= 0): 0
+stage b16: 10000/10000 clean keys, 0 errors
+=== stage b16 complete (2026-07-28 17:16:37) ===
+=== stage b32 attempt 1 (2026-07-28 17:16:37) prompts=10 inflight=8 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[32] items=5000 endpoints=9
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 30000 (item,method,signal,budget) already done
+[P10 mean_logprob b32] 5000 to do (0 resumed) | per-endpoint conc=1
+WARNING:root:Generated step carried no token logprobs (endpoint may not support logprobs=true, or the request errored). Using a neutral particle weight; self-certainty weighting is degraded for affected steps.
+    done in 26868s (5.37s/item, 0 errors)
+[P10 entropy b32] 5000 to do (0 resumed) | per-endpoint conc=1
+WARNING:root:Generated step carried no token logprobs (endpoint may not support logprobs=true, or the request errored). Using a neutral particle weight; self-certainty weighting is degraded for affected steps.
+    done in 27577s (5.52s/item, 0 errors)
+
+wrote 40000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 40000 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.304   0.624   0.318    0.262   0.696   0.94    0.95 5000
+P10 native inline MCQ (Mello entropy       16    0.288   0.711   0.324    0.155   0.673   0.93    0.95 5000
+P10 native inline MCQ (Mello entropy       32    0.284   0.788   0.322    0.088   0.667   0.92    0.95 5000
+    -> @32: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.50) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  16    0.311   0.615   0.321    0.130   0.759   0.88    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  32    0.308   0.682   0.316    0.074   0.756   0.88    0.95 5000
+    -> @32: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.37) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000       0
+P10        entropy b16         5000       0
+P10        entropy b32         5000       0
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+P10   mean_logprob b16         5000       0
+P10   mean_logprob b32         5000       0
+total errors (budget >= 0): 0
+stage b32: 10000/10000 clean keys, 0 errors
+=== stage b32 complete (2026-07-29 08:24:02) ===
+=== stage b64 attempt 1 (2026-07-29 08:24:02) prompts=10 inflight=8 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[64] items=5000 endpoints=9
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 40000 (item,method,signal,budget) already done
+[P10 mean_logprob b64] 5000 to do (0 resumed) | per-endpoint conc=1
+WARNING:root:Generated step carried no token logprobs (endpoint may not support logprobs=true, or the request errored). Using a neutral particle weight; self-certainty weighting is degraded for affected steps.
+    done in 26983s (5.40s/item, 101 errors)
+[P10 entropy b64] 5000 to do (0 resumed) | per-endpoint conc=1
+WARNING:root:Generated step carried no token logprobs (endpoint may not support logprobs=true, or the request errored). Using a neutral particle weight; self-certainty weighting is degraded for affected steps.
+    done in 27338s (5.47s/item, 102 errors)
+
+wrote 50000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 50000 | errors: 203
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.304   0.624   0.318    0.262   0.696   0.94    0.95 5000
+P10 native inline MCQ (Mello entropy       16    0.288   0.711   0.324    0.155   0.673   0.93    0.95 5000
+P10 native inline MCQ (Mello entropy       32    0.284   0.788   0.322    0.088   0.667   0.92    0.95 5000
+P10 native inline MCQ (Mello entropy       64    0.281   0.853   0.321    0.048   0.669   0.92    0.96 4898
+    -> @64: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.57) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  16    0.311   0.615   0.321    0.130   0.759   0.88    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  32    0.308   0.682   0.316    0.074   0.756   0.88    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  64    0.312   0.750   0.319    0.041   0.762   0.88    0.96 4899
+    -> @64: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.44) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000       0
+P10        entropy b16         5000       0
+P10        entropy b32         5000       0
+P10        entropy b64         5000     102
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+P10   mean_logprob b16         5000       0
+P10   mean_logprob b32         5000       0
+P10   mean_logprob b64         5000     101
+total errors (budget >= 0): 203
+stage b64 attempt 1: error rows remain -> resume sweep
+=== stage b64 attempt 2 (2026-07-29 23:29:25) prompts=10 inflight=8 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[64] items=5000 endpoints=9
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 49797 (item,method,signal,budget) already done
+[P10 mean_logprob b64] 101 to do (4899 resumed) | per-endpoint conc=1
+WARNING:root:Generated step carried no token logprobs (endpoint may not support logprobs=true, or the request errored). Using a neutral particle weight; self-certainty weighting is degraded for affected steps.
+    done in 14507s (143.63s/item, 62 errors)
+[P10 entropy b64] 102 to do (4898 resumed) | per-endpoint conc=1
+    done in 14848s (145.57s/item, 65 errors)
+
+wrote 50000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.csv
+
+rows: 50000 | errors: 127
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello entropy        1    0.300   0.300   0.300    0.941   0.941   1.00    0.94 5000
+P10 native inline MCQ (Mello entropy        8    0.304   0.624   0.318    0.262   0.696   0.94    0.95 5000
+P10 native inline MCQ (Mello entropy       16    0.288   0.711   0.324    0.155   0.673   0.93    0.95 5000
+P10 native inline MCQ (Mello entropy       32    0.284   0.788   0.322    0.088   0.667   0.92    0.95 5000
+P10 native inline MCQ (Mello entropy       64    0.280   0.851   0.321    0.048   0.667   0.92    0.95 4935
+    -> @64: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.57) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P10 native inline MCQ (Mello mean_logprob   1    0.310   0.310   0.310    0.947   0.947   1.00    0.95 5000
+P10 native inline MCQ (Mello mean_logprob   8    0.313   0.541   0.317    0.224   0.769   0.89    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  16    0.311   0.615   0.321    0.130   0.759   0.88    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  32    0.308   0.682   0.316    0.074   0.756   0.88    0.95 5000
+P10 native inline MCQ (Mello mean_logprob  64    0.311   0.748   0.319    0.041   0.759   0.87    0.96 4938
+    -> @64: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.44) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run04_mellow/mmsu_run04.log
+                            cell    rows  errors
+P10        entropy b1          5000       0
+P10        entropy b8          5000       0
+P10        entropy b16         5000       0
+P10        entropy b32         5000       0
+P10        entropy b64         5000      65
+P10   mean_logprob b1          5000       0
+P10   mean_logprob b8          5000       0
+P10   mean_logprob b16         5000       0
+P10   mean_logprob b32         5000       0
+P10   mean_logprob b64         5000      62
+total errors (budget >= 0): 127
+stage b64 attempt 2: error rows remain -> resume sweep
+=== stage b64 attempt 3 (2026-07-30 07:38:42) prompts=10 inflight=8 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[64] items=5000 endpoints=9
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 49873 (item,method,signal,budget) already done
+[P10 mean_logprob b64] 62 to do (4938 resumed) | per-endpoint conc=1
+    done in 8604s (138.77s/item, 42 errors)
+[P10 entropy b64] 65 to do (4935 resumed) | per-endpoint conc=1
+=== stage b64 attempt 1 (2026-07-30 10:44:14) prompts=10 inflight=8 ===
+EPF diversity probe: prompts=[10] signals=['mean_logprob', 'entropy'] budgets=[64] items=5000 endpoints=9
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 49897 (item,method,signal,budget) already done
+[P10 mean_logprob b64] 42 to do (4958 resumed) | per-endpoint conc=1

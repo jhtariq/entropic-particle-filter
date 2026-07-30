@@ -1,0 +1,2 @@
+[serve_mellow] loading soham97/mellow@83672db0 variant=v0 on cuda:0 ...
+Fetching 10 files:   0%|          | 0/10 [00:00<?, ?it/s]Fetching 10 files: 100%|██████████| 10/10 [00:00<00:00, 182361.04it/s]
