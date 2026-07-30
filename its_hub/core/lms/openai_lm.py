@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import ssl
 import threading
 import warnings
@@ -34,6 +35,7 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
         max_tokens: int | None = None,
         temperature: float | None = None,
         max_tries: int = 8,
+        request_timeout_s: float | None = None,
         max_concurrency: int = -1,
         replace_error_with_message: str | None = None,
         # SSL configuration
@@ -63,6 +65,16 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
         # Keep is_async for backward compatibility but it's no longer used
         self.is_async = is_async
         self.max_tries = max_tries
+        # Total per-request timeout. aiohttp's default is 300 s, which a deep
+        # particle swarm can exceed purely in queue wait: a serial endpoint (e.g.
+        # the Mellow shim, one request at a time) with `budget` particles in flight
+        # makes the last request wait behind all the others. MMSU Run 4 lost 408
+        # b64 rows to this. None keeps aiohttp's default; set it via
+        # OPENAI_LM_REQUEST_TIMEOUT_S or the constructor.
+        env_timeout = os.environ.get("OPENAI_LM_REQUEST_TIMEOUT_S")
+        if request_timeout_s is None and env_timeout:
+            request_timeout_s = float(env_timeout)
+        self.request_timeout_s = request_timeout_s
         self.max_concurrency = max_concurrency
         self.replace_error_with_message = replace_error_with_message
 
@@ -108,6 +120,14 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
     def _chat_completion_endpoint(self) -> str:
         return self.endpoint.rstrip("/") + "/chat/completions"
 
+    def _session_kwargs(self) -> dict:
+        """Extra ClientSession kwargs. Empty when no timeout is configured, so
+        aiohttp keeps its own default (total=300 s) -- note ClientTimeout() would
+        instead mean NO timeout, which is not the same thing."""
+        if self.request_timeout_s is None:
+            return {}
+        return {"timeout": aiohttp.ClientTimeout(total=self.request_timeout_s)}
+
     def _get_session(self, loop: asyncio.AbstractEventLoop) -> aiohttp.ClientSession:
         """Get or create an HTTP session for the given event loop.
 
@@ -121,7 +141,7 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
 
             # Create new session for the event loop
             connector = aiohttp.TCPConnector(ssl=self.ssl_context)
-            session = aiohttp.ClientSession(connector=connector)
+            session = aiohttp.ClientSession(connector=connector, **self._session_kwargs())
             self._sessions[loop] = session
 
             return session
@@ -269,7 +289,7 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
         # create a single session for all requests in this call
         # Use the same SSL behavior as requests library
         connector = aiohttp.TCPConnector(ssl=self.ssl_context)
-        async with aiohttp.ClientSession(connector=connector) as session:
+        async with aiohttp.ClientSession(connector=connector, **self._session_kwargs()) as session:
 
             @backoff.on_exception(
                 backoff.expo,
