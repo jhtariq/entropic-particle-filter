@@ -188,6 +188,11 @@ cython_debug/
 notebooks/dev.ipynb
 results/
 
+# raw benchmark data must never enter git (datasets live under
+# /home/exx/inference-time-scaling/data/ — see benchmarking/*/README.md)
+*.parquet
+*.tar.gz
+
 .its-hub/
 benchmarking/mmau_pro/run16/config.local.sh
 benchmarking/mmau_pro/run17/config.local.sh
