@@ -1,0 +1,228 @@
+=== stage b1 attempt 1 (2026-07-30 10:49:27) prompts=4 inflight=24 ===
+EPF diversity probe: prompts=[4] signals=['mean_logprob', 'entropy'] budgets=[1] items=5000 endpoints=2
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+[P4 mean_logprob b1] 5000 to do (0 resumed) | per-endpoint conc=24
+    done in 481s (0.10s/item, 0 errors)
+[P4 entropy b1] 5000 to do (0 resumed) | per-endpoint conc=24
+    done in 433s (0.09s/item, 0 errors)
+
+wrote 10000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run05_phi4mm/mmsu_run05.csv
+
+rows: 10000 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P4 plan-and-solve            entropy        1    0.510   0.510   0.510    0.976   0.976   1.00    0.98 5000
+    -> @1: diversity present (distinct=0.98)
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P4 plan-and-solve            mean_logprob   1    0.515   0.515   0.515    0.976   0.976   1.00    0.98 5000
+    -> @1: diversity present (distinct=0.98)
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run05_phi4mm/mmsu_run05.log
+                            cell    rows  errors
+P4        entropy b1          5000       0
+P4   mean_logprob b1          5000       0
+total errors (budget >= 0): 0
+stage b1: 10000/10000 clean keys, 0 errors
+=== stage b1 complete (2026-07-30 11:04:41) ===
+=== stage b8 attempt 1 (2026-07-30 11:04:41) prompts=4 inflight=64 ===
+EPF diversity probe: prompts=[4] signals=['mean_logprob', 'entropy'] budgets=[8] items=5000 endpoints=2
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 10000 (item,method,signal,budget) already done
+[P4 mean_logprob b8] 5000 to do (0 resumed) | per-endpoint conc=8
+    done in 2340s (0.47s/item, 0 errors)
+[P4 entropy b8] 5000 to do (0 resumed) | per-endpoint conc=8
+    done in 2498s (0.50s/item, 0 errors)
+
+wrote 20000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run05_phi4mm/mmsu_run05.csv
+
+rows: 20000 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P4 plan-and-solve            entropy        1    0.510   0.510   0.510    0.976   0.976   1.00    0.98 5000
+P4 plan-and-solve            entropy        8    0.544   0.729   0.549    0.207   0.844   0.91    0.99 5000
+    -> @8: diversity present (distinct=0.21); oracle>>selected (+0.19) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P4 plan-and-solve            mean_logprob   1    0.515   0.515   0.515    0.976   0.976   1.00    0.98 5000
+P4 plan-and-solve            mean_logprob   8    0.548   0.695   0.550    0.189   0.874   0.89    0.99 5000
+    -> @8: diversity present (distinct=0.19); oracle>>selected (+0.15) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run05_phi4mm/mmsu_run05.log
+                            cell    rows  errors
+P4        entropy b1          5000       0
+P4        entropy b8          5000       0
+P4   mean_logprob b1          5000       0
+P4   mean_logprob b8          5000       0
+total errors (budget >= 0): 0
+stage b8: 10000/10000 clean keys, 0 errors
+=== stage b8 complete (2026-07-30 12:25:20) ===
+=== stage b16 attempt 1 (2026-07-30 12:25:20) prompts=4 inflight=64 ===
+EPF diversity probe: prompts=[4] signals=['mean_logprob', 'entropy'] budgets=[16] items=5000 endpoints=2
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 20000 (item,method,signal,budget) already done
+[P4 mean_logprob b16] 5000 to do (0 resumed) | per-endpoint conc=4
+    done in 5609s (1.12s/item, 0 errors)
+[P4 entropy b16] 5000 to do (0 resumed) | per-endpoint conc=4
+    done in 5908s (1.18s/item, 0 errors)
+
+wrote 30000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run05_phi4mm/mmsu_run05.csv
+
+rows: 30000 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P4 plan-and-solve            entropy        1    0.510   0.510   0.510    0.976   0.976   1.00    0.98 5000
+P4 plan-and-solve            entropy        8    0.544   0.729   0.549    0.207   0.844   0.91    0.99 5000
+P4 plan-and-solve            entropy       16    0.554   0.801   0.561    0.119   0.831   0.90    0.99 5000
+    -> @16: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.25) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P4 plan-and-solve            mean_logprob   1    0.515   0.515   0.515    0.976   0.976   1.00    0.98 5000
+P4 plan-and-solve            mean_logprob   8    0.548   0.695   0.550    0.189   0.874   0.89    0.99 5000
+P4 plan-and-solve            mean_logprob  16    0.543   0.758   0.546    0.109   0.861   0.87    0.99 5000
+    -> @16: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.22) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run05_phi4mm/mmsu_run05.log
+                            cell    rows  errors
+P4        entropy b1          5000       0
+P4        entropy b8          5000       0
+P4        entropy b16         5000       0
+P4   mean_logprob b1          5000       0
+P4   mean_logprob b8          5000       0
+P4   mean_logprob b16         5000       0
+total errors (budget >= 0): 0
+stage b16: 10000/10000 clean keys, 0 errors
+=== stage b16 complete (2026-07-30 15:37:18) ===
+=== stage b32 attempt 1 (2026-07-30 15:37:18) prompts=4 inflight=64 ===
+EPF diversity probe: prompts=[4] signals=['mean_logprob', 'entropy'] budgets=[32] items=5000 endpoints=2
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 30000 (item,method,signal,budget) already done
+[P4 mean_logprob b32] 5000 to do (0 resumed) | per-endpoint conc=2
+    done in 13305s (2.66s/item, 0 errors)
+[P4 entropy b32] 5000 to do (0 resumed) | per-endpoint conc=2
+    done in 13890s (2.78s/item, 0 errors)
+
+wrote 40000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run05_phi4mm/mmsu_run05.csv
+
+rows: 40000 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P4 plan-and-solve            entropy        1    0.510   0.510   0.510    0.976   0.976   1.00    0.98 5000
+P4 plan-and-solve            entropy        8    0.544   0.729   0.549    0.207   0.844   0.91    0.99 5000
+P4 plan-and-solve            entropy       16    0.554   0.801   0.561    0.119   0.831   0.90    0.99 5000
+P4 plan-and-solve            entropy       32    0.551   0.856   0.564    0.068   0.819   0.90    1.00 5000
+    -> @32: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.30) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P4 plan-and-solve            mean_logprob   1    0.515   0.515   0.515    0.976   0.976   1.00    0.98 5000
+P4 plan-and-solve            mean_logprob   8    0.548   0.695   0.550    0.189   0.874   0.89    0.99 5000
+P4 plan-and-solve            mean_logprob  16    0.543   0.758   0.546    0.109   0.861   0.87    0.99 5000
+P4 plan-and-solve            mean_logprob  32    0.546   0.820   0.557    0.062   0.845   0.86    1.00 5000
+    -> @32: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.27) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run05_phi4mm/mmsu_run05.log
+                            cell    rows  errors
+P4        entropy b1          5000       0
+P4        entropy b8          5000       0
+P4        entropy b16         5000       0
+P4        entropy b32         5000       0
+P4   mean_logprob b1          5000       0
+P4   mean_logprob b8          5000       0
+P4   mean_logprob b16         5000       0
+P4   mean_logprob b32         5000       0
+total errors (budget >= 0): 0
+stage b32: 10000/10000 clean keys, 0 errors
+=== stage b32 complete (2026-07-30 23:10:34) ===
+=== stage b64 attempt 1 (2026-07-30 23:10:34) prompts=4 inflight=64 ===
+EPF diversity probe: prompts=[4] signals=['mean_logprob', 'entropy'] budgets=[64] items=5000 endpoints=2
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 40000 (item,method,signal,budget) already done
+[P4 mean_logprob b64] 5000 to do (0 resumed) | per-endpoint conc=1
+    done in 30960s (6.19s/item, 0 errors)
+[P4 entropy b64] 5000 to do (0 resumed) | per-endpoint conc=1
+    done in 32130s (6.43s/item, 0 errors)
+
+wrote 50000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run05_phi4mm/mmsu_run05.csv
+
+rows: 50000 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P4 plan-and-solve            entropy        1    0.510   0.510   0.510    0.976   0.976   1.00    0.98 5000
+P4 plan-and-solve            entropy        8    0.544   0.729   0.549    0.207   0.844   0.91    0.99 5000
+P4 plan-and-solve            entropy       16    0.554   0.801   0.561    0.119   0.831   0.90    0.99 5000
+P4 plan-and-solve            entropy       32    0.551   0.856   0.564    0.068   0.819   0.90    1.00 5000
+P4 plan-and-solve            entropy       64    0.544   0.901   0.561    0.038   0.811   0.89    1.00 5000
+    -> @64: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.36) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P4 plan-and-solve            mean_logprob   1    0.515   0.515   0.515    0.976   0.976   1.00    0.98 5000
+P4 plan-and-solve            mean_logprob   8    0.548   0.695   0.550    0.189   0.874   0.89    0.99 5000
+P4 plan-and-solve            mean_logprob  16    0.543   0.758   0.546    0.109   0.861   0.87    0.99 5000
+P4 plan-and-solve            mean_logprob  32    0.546   0.820   0.557    0.062   0.845   0.86    1.00 5000
+P4 plan-and-solve            mean_logprob  64    0.538   0.862   0.552    0.035   0.831   0.85    1.00 5000
+    -> @64: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.32) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run05_phi4mm/mmsu_run05.log
+                            cell    rows  errors
+P4        entropy b1          5000       0
+P4        entropy b8          5000       0
+P4        entropy b16         5000       0
+P4        entropy b32         5000       0
+P4        entropy b64         5000       0
+P4   mean_logprob b1          5000       0
+P4   mean_logprob b8          5000       0
+P4   mean_logprob b16         5000       0
+P4   mean_logprob b32         5000       0
+P4   mean_logprob b64         5000       0
+total errors (budget >= 0): 0
+stage b64: 10000/10000 clean keys, 0 errors
+=== stage b64 complete (2026-07-31 16:42:06) ===
+=== stage b128 attempt 1 (2026-07-31 16:42:06) prompts=4 inflight=64 ===
+EPF diversity probe: prompts=[4] signals=['mean_logprob', 'entropy'] budgets=[128] items=5000 endpoints=2
+category mix: accent_identification:114, age_prediction:104, background_scene_recognition:110, casual_reasoning:116, code_switch_question_answering:111, consonant_vowel_perception:103, content_grounding:109, continuation_writing:110, couplet_matching:107, deixis_resolution:103, dialogue_reasoning:114, dialogue_turn_counting:99, disfluency_detection:106, emotion_recognition:117, emotional_context_reasoning:110, gender_prediction:120, homophone_based_reasoning:101, idiom_reasoning:102, intent_detection:115, intonation_based_reasoning:78, intonation_perception:111, logical_reasoning:104, long_speech_summarization:106, near_homophone_perception:99, non_verbal_sound_detection:117, pause_based_reasoning:90, pause_perception:107, pitch_comparison:108, plosive_sound_identification:108, polysemy_reasoning:98, prolonged_sound_perception:83, prolonged_sound_reasoning:84, puns_interpretation:109, sarcasm_detection:116, speaker_identity_recognition:114, speech_act_classification:98, speech_duration_estimation:106, speech_stress_perception:110, speech_translation:119, speed_comparison:109, stress_based_reasoning:110, syllable_perception:100, syntactic_structure_matching:98, synthetic_speech_detection:109, total_speaker_counting:120, vocal_range_comparison:108, volume_comparison:110
+resume: 50000 (item,method,signal,budget) already done
+[P4 mean_logprob b128] 5000 to do (0 resumed) | per-endpoint conc=1
+    done in 38033s (7.61s/item, 0 errors)
+[P4 entropy b128] 5000 to do (0 resumed) | per-endpoint conc=1
+    done in 39901s (7.98s/item, 0 errors)
+
+wrote 60000 rows -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run05_phi4mm/mmsu_run05.csv
+
+rows: 60000 | errors: 0
+
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P4 plan-and-solve            entropy        1    0.510   0.510   0.510    0.976   0.976   1.00    0.98 5000
+P4 plan-and-solve            entropy        8    0.544   0.729   0.549    0.207   0.844   0.91    0.99 5000
+P4 plan-and-solve            entropy       16    0.554   0.801   0.561    0.119   0.831   0.90    0.99 5000
+P4 plan-and-solve            entropy       32    0.551   0.856   0.564    0.068   0.819   0.90    1.00 5000
+P4 plan-and-solve            entropy       64    0.544   0.901   0.561    0.038   0.811   0.89    1.00 5000
+P4 plan-and-solve            entropy      128    0.538   0.929   0.557    0.020   0.804   0.89    1.00 5000
+    -> @128: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.39) -> WEIGHT is the bottleneck
+
+prompt                       sig          bud  sel_acc  oracle   major distinct  consen    ess  parsed    n
+P4 plan-and-solve            mean_logprob   1    0.515   0.515   0.515    0.976   0.976   1.00    0.98 5000
+P4 plan-and-solve            mean_logprob   8    0.548   0.695   0.550    0.189   0.874   0.89    0.99 5000
+P4 plan-and-solve            mean_logprob  16    0.543   0.758   0.546    0.109   0.861   0.87    0.99 5000
+P4 plan-and-solve            mean_logprob  32    0.546   0.820   0.557    0.062   0.845   0.86    1.00 5000
+P4 plan-and-solve            mean_logprob  64    0.538   0.862   0.552    0.035   0.831   0.85    1.00 5000
+P4 plan-and-solve            mean_logprob 128    0.537   0.906   0.561    0.019   0.824   0.84    1.00 5000
+    -> @128: swarm COLLAPSES (distinct~0) -> scaling wasted; oracle>>selected (+0.37) -> WEIGHT is the bottleneck
+wrote report -> /home/tariq-v5/its/entropic-particle-filter/benchmarking/mmsu/results/run05_phi4mm/mmsu_run05.log
+                            cell    rows  errors
+P4        entropy b1          5000       0
+P4        entropy b8          5000       0
+P4        entropy b16         5000       0
+P4        entropy b32         5000       0
+P4        entropy b64         5000       0
+P4        entropy b128        5000       0
+P4   mean_logprob b1          5000       0
+P4   mean_logprob b8          5000       0
+P4   mean_logprob b16         5000       0
+P4   mean_logprob b32         5000       0
+P4   mean_logprob b64         5000       0
+P4   mean_logprob b128        5000       0
+total errors (budget >= 0): 0
+stage b128: 10000/10000 clean keys, 0 errors
+=== stage b128 complete (2026-08-01 14:21:02) ===
+=== grid complete (2026-08-01 14:21:02) ===
