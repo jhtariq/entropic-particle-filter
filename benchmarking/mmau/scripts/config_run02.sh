@@ -9,4 +9,6 @@ PROMPTS="4"
 BUDGETS="1 8 16 32 64 128"
 STEM="mmau_run02"
 OUT_DIR="$REPO_ROOT/benchmarking/mmau/results/run02_omni3b"
-GPUS="0"   # single-GPU session — GPU 1 is the live Kimi MMAR job
+# GPU 1 freed (Kimi MMAR job done) — env-overridable, default single-GPU:
+#   GPUS="0 1" ENDPOINTS="http://localhost:8100/v1,http://localhost:8101/v1" bash serve.sh/run_grid.sh ...
+GPUS="${GPUS:-0}"
