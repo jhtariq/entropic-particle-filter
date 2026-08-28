@@ -21,8 +21,11 @@ PROMPT_COLORS = {4: "#1b9e77", 5: "#d95f02", 7: "#7570b3", 9: "#e7298a"}
 SIGNAL_STYLE = {
     "mean_logprob": {"linestyle": "-", "marker": "o"},
     "entropy": {"linestyle": "--", "marker": "s"},
+    "random": {"linestyle": ":", "marker": "x"},
+    "random_iid": {"linestyle": ":", "marker": "D"},
 }
-SIGNAL_LABEL = {"mean_logprob": "mean_logprob", "entropy": "entropy"}
+SIGNAL_LABEL = {"mean_logprob": "mean_logprob", "entropy": "entropy",
+                "random": "random (uniform)", "random_iid": "random (i.i.d.)"}
 
 
 def _wilson_halfwidth(p, n, z=1.96):

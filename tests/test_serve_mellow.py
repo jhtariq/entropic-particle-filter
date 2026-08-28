@@ -296,3 +296,57 @@ def test_parsed_request_dataclass_defaults():
         include_stop_str=False,
     )
     assert req.extras == {}
+    assert req.n == 1 and req.seed is None
+
+
+# ---------------------------- n / seed (SC batching) ---------------------------- #
+
+
+def test_parse_n_and_seed():
+    body = {"messages": [{"role": "user", "content": "hi"}], "n": 128, "seed": 1234}
+    req = parse_request(body)
+    assert req.n == 128 and req.seed == 1234
+
+    # the exact SC request shape sample_runner puts on the wire
+    body = {
+        "model": "mellow",
+        "messages": [{"role": "user", "content": "hi"}],
+        "n": 128, "temperature": 0.8, "top_p": 1.0, "max_tokens": 64, "seed": 1234,
+    }
+    req = parse_request(body)
+    assert req.n == 128 and req.seed == 1234 and req.top_p == 1.0
+
+
+def test_parse_n_defaults_and_bounds():
+    assert parse_request({"messages": [{"role": "user", "content": "hi"}]}).n == 1
+    assert parse_request({"messages": [{"role": "user", "content": "hi"}]}).seed is None
+    with pytest.raises(RequestError, match="n must be"):
+        parse_request({"messages": [{"role": "user", "content": "hi"}], "n": 0})
+    with pytest.raises(RequestError, match="n must be"):
+        parse_request({"messages": [{"role": "user", "content": "hi"}], "n": 300})
+
+
+def test_response_payload_multi_choice():
+    results = [
+        {"content": "a) dog", "logprob_entries": [{"token": "a", "logprob": -0.5}],
+         "prompt_tokens": 519, "completion_tokens": 1, "finish_reason": "stop"},
+        {"content": "b) cat", "logprob_entries": [{"token": "b", "logprob": -1.0},
+                                                  {"token": ")", "logprob": -0.1}],
+         "prompt_tokens": 519, "completion_tokens": 2, "finish_reason": "length"},
+    ]
+    payload = build_response_payload("mellow", 1, results)
+    assert [c["index"] for c in payload["choices"]] == [0, 1]
+    assert payload["choices"][0]["message"]["content"] == "a) dog"
+    assert payload["choices"][1]["message"]["content"] == "b) cat"
+    assert payload["choices"][1]["finish_reason"] == "length"
+    assert payload["choices"][0]["logprobs"] == {"content": [{"token": "a", "logprob": -0.5}]}
+    # prompt counted once, completions summed (OpenAI n semantics)
+    assert payload["usage"]["prompt_tokens"] == 519
+    assert payload["usage"]["completion_tokens"] == 3
+    assert payload["usage"]["total_tokens"] == 522
+
+
+def test_response_payload_single_dict_backcompat():
+    # legacy n=1 engine shape (a bare dict) must keep producing one choices[0]
+    payload = build_response_payload("mellow", 1, _result(None))
+    assert len(payload["choices"]) == 1 and payload["choices"][0]["index"] == 0

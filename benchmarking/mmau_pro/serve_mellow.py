@@ -14,7 +14,11 @@ harness needs, one process per GPU:
       top level and inside ``extra_body``): a trailing assistant message is tokenized
       without EOS and generation continues from it;
     * ``stop`` strings (with ``include_stop_str_in_output``), ``max_tokens``,
-      ``temperature``, optional ``top_p``.
+      ``temperature``, optional ``top_p``;
+    * ``n`` (1..128) completions per request in ONE batched decode — the audio is
+      encoded once and the 389-token prefix expanded row-wise (self-consistency
+      sampling); ``seed`` seeds one per-request ``torch.Generator`` shared across all
+      rows and steps, so a retried chunk reproduces identical samples.
 
 The chat messages are mapped onto Mellow's native format: all system/user text parts are
 joined into one plain-text prompt (Mellow has no chat template) and the audio parts fill
@@ -48,6 +52,7 @@ MELLOW_REVISION = "83672db0dae28764e283210d5bb732621e903d8a"
 MELLOW_CODE_COMMIT = "349f9b2be84bec713ac71e54fcbcac9bf4d116e5"
 SMOLLM2_REVISION = "93efa2f097d58c2a74874c7e644dbc9b0cee75a2"
 MAX_AUDIO_SLOTS = 2
+MAX_N = 128
 
 
 class RequestError(ValueError):
@@ -79,6 +84,8 @@ class ParsedRequest:
     logprobs: bool
     top_logprobs: int | None
     include_stop_str: bool
+    n: int = 1
+    seed: int | None = None
     raw_model: str = ""
     extras: dict = field(default_factory=dict)
 
@@ -173,6 +180,13 @@ def parse_request(body: dict, default_max_tokens: int = 512) -> ParsedRequest:
     top_p = body.get("top_p")
     top_logprobs = body.get("top_logprobs")
 
+    n_raw = body.get("n")
+    n = int(n_raw) if n_raw is not None else 1
+    if not 1 <= n <= MAX_N:
+        raise RequestError(f"n must be in [1, {MAX_N}], got {n}")
+    seed_raw = body.get("seed")
+    seed = int(seed_raw) if seed_raw is not None else None
+
     return ParsedRequest(
         prompt_text=prompt_text,
         continuation=continuation,
@@ -184,6 +198,8 @@ def parse_request(body: dict, default_max_tokens: int = 512) -> ParsedRequest:
         logprobs=bool(body.get("logprobs", False)),
         top_logprobs=int(top_logprobs) if top_logprobs is not None else None,
         include_stop_str=bool(_flag(body, extra, "include_stop_str_in_output", False)),
+        n=n,
+        seed=seed,
         raw_model=str(body.get("model", "")),
     )
 
@@ -251,26 +267,35 @@ def fit_waveform(wav, need: int):
     return wav
 
 
-def build_response_payload(model_name: str, created: int, result: dict) -> dict:
-    """Assemble the chat-completion JSON from an engine result dict."""
-    logprobs = None
-    if result.get("logprob_entries") is not None:
-        logprobs = {"content": result["logprob_entries"]}
-    prompt_tokens = int(result.get("prompt_tokens", 0))
-    completion_tokens = int(result.get("completion_tokens", 0))
-    return {
-        "id": f"chatcmpl-{created}-{abs(hash(result['content'])) % 10**8}",
-        "object": "chat.completion",
-        "created": created,
-        "model": model_name,
-        "choices": [
+def build_response_payload(model_name: str, created: int, results) -> dict:
+    """Assemble the chat-completion JSON from engine result dict(s).
+
+    ``results`` is one engine result dict (legacy n=1 shape) or a list of them, one
+    per requested choice. The prompt is shared across choices, so ``usage`` counts
+    prompt tokens once and sums completion tokens (OpenAI ``n`` semantics)."""
+    if isinstance(results, dict):
+        results = [results]
+    choices = []
+    for k, result in enumerate(results):
+        logprobs = None
+        if result.get("logprob_entries") is not None:
+            logprobs = {"content": result["logprob_entries"]}
+        choices.append(
             {
-                "index": 0,
+                "index": k,
                 "message": {"role": "assistant", "content": result["content"]},
                 "logprobs": logprobs,
                 "finish_reason": result.get("finish_reason", "stop"),
             }
-        ],
+        )
+    prompt_tokens = int(results[0].get("prompt_tokens", 0))
+    completion_tokens = sum(int(r.get("completion_tokens", 0)) for r in results)
+    return {
+        "id": f"chatcmpl-{created}-{abs(hash(results[0]['content'])) % 10**8}",
+        "object": "chat.completion",
+        "created": created,
+        "model": model_name,
+        "choices": choices,
         "usage": {
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
@@ -470,50 +495,65 @@ class MellowEngine:
 
     # -- generation --------------------------------------------------------------
 
-    def _sample_step(self, logits, temperature: float, top_p: float | None, want_lp: bool, top_k: int):
-        """One sampling step. Returns (token_id, logprob, top_entries|None)."""
+    def _sample_step_batch(
+        self, logits, temperature: float, top_p: float | None, want_lp: bool, top_k: int, gen=None
+    ):
+        """One sampling step over ``(n, V)`` logits — the n=1 greedy path is
+        token-identical to the pre-batching loop (argmax on float32 logits).
+
+        ``gen`` is an optional per-request seeded ``torch.Generator`` shared by every
+        row and step of the batch. Returns ``(toks, lps, tops)``: token ids per row,
+        chosen logprobs per row (or None), top-k entry lists per row (or None). One
+        ``.tolist()`` per tensor — no per-row ``.item()`` in the n=128 hot loop.
+        """
         import torch
         from torch.nn import functional as nnf
 
         logits = logits.float()
         if temperature <= 1e-5:
             dist = nnf.log_softmax(logits, dim=-1)
-            tok = int(torch.argmax(logits, dim=-1).item())
+            toks_t = torch.argmax(logits, dim=-1)
         else:
-            scaled = logits / temperature
-            dist = nnf.log_softmax(scaled, dim=-1)  # logprobs pre-top-p (vLLM convention)
+            dist = nnf.log_softmax(logits / temperature, dim=-1)  # logprobs pre-top-p (vLLM convention)
             if top_p is not None and 0.0 < top_p < 1.0:
                 probs = dist.exp()
-                sorted_probs, sorted_idx = torch.sort(probs, descending=True)
+                sorted_probs, sorted_idx = torch.sort(probs, dim=-1, descending=True)
                 cum = torch.cumsum(sorted_probs, dim=-1)
                 mask = (cum - sorted_probs) > top_p  # keep the first token crossing top_p
-                sorted_probs[mask] = 0.0
-                sorted_probs /= sorted_probs.sum()
-                pick = int(torch.multinomial(sorted_probs, 1).item())
-                tok = int(sorted_idx[pick].item())
+                sorted_probs = sorted_probs.masked_fill(mask, 0.0)
+                sorted_probs = sorted_probs / sorted_probs.sum(dim=-1, keepdim=True)
+                pick = torch.multinomial(sorted_probs, 1, generator=gen)
+                toks_t = sorted_idx.gather(1, pick).squeeze(1)
             else:
-                tok = int(torch.multinomial(dist.exp(), 1).item())
+                toks_t = torch.multinomial(dist.exp(), 1, generator=gen).squeeze(1)
 
+        toks = [int(t) for t in toks_t.tolist()]
         if not want_lp:
-            return tok, None, None
-        chosen_lp = float(dist[tok].item())
-        top_entries = None
+            return toks, None, None
+        lps = dist.gather(1, toks_t.unsqueeze(1)).squeeze(1).tolist()
+        tops = None
         if top_k:
             k = min(top_k, dist.shape[-1])
-            vals, idxs = torch.topk(dist, k)
-            top_entries = [
-                {"token": self.tokenizer.decode([int(i)]), "logprob": float(v)}
-                for v, i in zip(vals.tolist(), idxs.tolist(), strict=True)
-            ]
-            if tok not in idxs.tolist():
-                top_entries.append({"token": self.tokenizer.decode([tok]), "logprob": chosen_lp})
-        return tok, chosen_lp, top_entries
+            vals, idxs = torch.topk(dist, k, dim=-1)
+            tops = []
+            for i, (vrow, irow) in enumerate(zip(vals.tolist(), idxs.tolist(), strict=True)):
+                row = [
+                    {"token": self.tokenizer.decode([int(ix)]), "logprob": float(v)}
+                    for v, ix in zip(vrow, irow, strict=True)
+                ]
+                if toks[i] not in irow:
+                    row.append({"token": self.tokenizer.decode([toks[i]]), "logprob": lps[i]})
+                tops.append(row)
+        return toks, lps, tops
 
-    def generate(self, req: ParsedRequest) -> dict:
+    def generate(self, req: ParsedRequest) -> list[dict]:
+        """Generate ``req.n`` completions in one batched decode (audio encoded once,
+        prefix expanded row-wise). Always returns a list of per-choice result dicts."""
         import torch
 
         model, tokenizer = self.model, self.tokenizer
         lm = model.caption_decoder.lm
+        n = req.n
 
         a1, a2 = self._audio_slots(req.audio_refs)
         input_ids = self._tokenize_prompt(req.prompt_text)
@@ -534,44 +574,72 @@ class MellowEngine:
                     prefix = torch.cat((prefix, lm.model.embed_tokens(cont_t)), dim=1)
 
             prompt_tokens = int(prefix.shape[1])
+            if n > 1:
+                prefix = prefix.expand(n, -1, -1).contiguous()
             want_lp = req.logprobs
             top_k = req.top_logprobs or 0
 
-            tokens: list[int] = []
-            entries: list[dict] = []
-            cum_lengths: list[int] = []
-            text = ""
-            finish_reason = "length"
+            gen = None
+            if req.seed is not None and req.temperature > 1e-5:
+                # one generator per request, shared across rows/steps: deterministic
+                # batches, so a retried chunk reproduces identical samples
+                gen = torch.Generator(device=prefix.device)
+                gen.manual_seed(req.seed)
+
+            tokens: list[list[int]] = [[] for _ in range(n)]
+            entries: list[list[dict]] = [[] for _ in range(n)]
+            cum_lengths: list[list[int]] = [[] for _ in range(n)]
+            texts: list[str] = [""] * n
+            finish: list[str] = ["length"] * n
+            alive: list[bool] = [True] * n
 
             out = lm(inputs_embeds=prefix, use_cache=self.use_kv_cache)
             past = out.past_key_values if self.use_kv_cache else None
-            logits = out.logits[0, -1, :]
+            logits = out.logits[:, -1, :]
             generated = prefix if not self.use_kv_cache else None
 
             for _ in range(req.max_tokens):
-                tok, lp, top = self._sample_step(logits, req.temperature, req.top_p, want_lp, top_k)
-                if tok == self.eos_id:
-                    finish_reason = "stop"
+                toks, lps, tops = self._sample_step_batch(
+                    logits, req.temperature, req.top_p, want_lp, top_k, gen
+                )
+                next_ids: list[int] = []
+                for i in range(n):
+                    if not alive[i]:
+                        next_ids.append(self.eos_id)  # keep dead rows KV-aligned
+                        continue
+                    tok = toks[i]
+                    if tok == self.eos_id:
+                        finish[i] = "stop"
+                        alive[i] = False
+                        next_ids.append(self.eos_id)
+                        continue
+                    tokens[i].append(tok)
+                    if want_lp:
+                        entry = {"token": tokenizer.decode([tok]), "logprob": lps[i]}
+                        if tops is not None:
+                            entry["top_logprobs"] = tops[i]
+                        entries[i].append(entry)
+                    if req.stop:
+                        # per-step incremental decode only when stop strings can end a
+                        # row mid-stream (EPF n=1); the SC n=128 path decodes once at
+                        # row completion instead of O(len^2) re-decodes per row
+                        texts[i] = tokenizer.decode(tokens[i])
+                        cum_lengths[i].append(len(texts[i]))
+                        kept, n_tokens, hit = apply_stop_strings(
+                            texts[i], cum_lengths[i], req.stop, req.include_stop_str
+                        )
+                        if hit:
+                            texts[i] = kept
+                            tokens[i] = tokens[i][:n_tokens]
+                            entries[i] = entries[i][:n_tokens]
+                            finish[i] = "stop"
+                            alive[i] = False
+                            next_ids.append(self.eos_id)
+                            continue
+                    next_ids.append(tok)
+                if not any(alive):
                     break
-                tokens.append(tok)
-                if want_lp:
-                    entry = {"token": tokenizer.decode([tok]), "logprob": lp}
-                    if top is not None:
-                        entry["top_logprobs"] = top
-                    entries.append(entry)
-                text = tokenizer.decode(tokens)
-                cum_lengths.append(len(text))
-                if req.stop:
-                    kept, n_tokens, hit = apply_stop_strings(
-                        text, cum_lengths, req.stop, req.include_stop_str
-                    )
-                    if hit:
-                        text = kept
-                        tokens = tokens[:n_tokens]
-                        entries = entries[:n_tokens]
-                        finish_reason = "stop"
-                        break
-                tok_t = torch.tensor([[tok]], dtype=torch.long, device=self.device)
+                tok_t = torch.tensor(next_ids, dtype=torch.long, device=self.device).unsqueeze(1)
                 tok_embed = lm.model.embed_tokens(tok_t)
                 if self.use_kv_cache:
                     out = lm(inputs_embeds=tok_embed, past_key_values=past, use_cache=True)
@@ -579,15 +647,22 @@ class MellowEngine:
                 else:
                     generated = torch.cat((generated, tok_embed), dim=1)
                     out = lm(inputs_embeds=generated)
-                logits = out.logits[0, -1, :]
+                logits = out.logits[:, -1, :]
 
-        return {
-            "content": text,
-            "logprob_entries": entries if want_lp else None,
-            "prompt_tokens": prompt_tokens,
-            "completion_tokens": len(tokens),
-            "finish_reason": finish_reason,
-        }
+            if not req.stop:
+                for i in range(n):
+                    texts[i] = tokenizer.decode(tokens[i]) if tokens[i] else ""
+
+        return [
+            {
+                "content": texts[i],
+                "logprob_entries": entries[i] if want_lp else None,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": len(tokens[i]),
+                "finish_reason": finish[i],
+            }
+            for i in range(n)
+        ]
 
 
 # --------------------------------------------------------------------------------------

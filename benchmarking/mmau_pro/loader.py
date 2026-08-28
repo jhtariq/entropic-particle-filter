@@ -7,6 +7,9 @@ from benchmarking.mmau_pro.scoring import match_answer_index
 
 SUBSET_FILES = {
     "full": "testmini-00000-of-00001.parquet",
+    # MMAU-Pro-D1K (macabdul9/MMAU-Pro-D1K): curated 1,000-item single-audio subset of the
+    # full test set; ships its own audio, so the parquet and clips share one data/ root
+    "d1k": "test.parquet",
     "le30s": "testmini_le30s-00000-of-00001.parquet",
     "test": "test-00000-of-00001.parquet",  # the FULL MMAU-Pro test set (5,305 rows)
     # full test set filtered to items whose clips ALL fit Qwen2-Audio's 30 s encoder

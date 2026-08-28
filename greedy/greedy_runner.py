@@ -35,6 +35,7 @@ from benchmarking.mmau_pro.prompt import build_messages
 from benchmarking.mmau_pro.scoring import LETTERS, is_correct, predicted_index
 from benchmarking.mmsu.greedy_baseline import NO_COT_SYS
 from benchmarking.mmsu.loader import load_mmsu_mcq
+from benchmarking.star_bench.loader import load_star_bench_mcq
 from its_hub import OpenAICompatibleLanguageModel
 from its_hub.core.utils import extract_content_from_lm_response
 
@@ -42,8 +43,9 @@ LOADERS = {
     "mmau": load_mmau_mcq,
     "mmar": load_mmar_mcq,
     "mmsu": load_mmsu_mcq,
+    "star_bench": load_star_bench_mcq,
 }
-DEFAULT_SUBSET = {"mmau": "test", "mmar": "full", "mmsu": "full"}
+DEFAULT_SUBSET = {"mmau": "test", "mmar": "full", "mmsu": "full", "star_bench": "full"}
 
 CSV_FIELDS = ["unique_id", "category", "gold_letter", "pred_letter", "correct",
               "n_choices", "n_audios_sent", "content", "error"]

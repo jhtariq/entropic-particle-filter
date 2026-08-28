@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import ssl
 import threading
 import warnings
@@ -8,6 +9,12 @@ import weakref
 import aiohttp
 import backoff
 import certifi
+
+# aiohttp's default ClientTimeout(total=300) counts QUEUE time: against a serialized
+# single-decode server (e.g. the Mellow shim) a budget-128 particle fan-out can hold
+# tail requests in queue past 300 s even though each decode is fast. Overridable so
+# such runs can raise the cap without touching callers.
+_HTTP_TIMEOUT = aiohttp.ClientTimeout(total=float(os.environ.get("ITS_HUB_HTTP_TIMEOUT", "300")))
 
 from its_hub.api import (
     RETRYABLE_ERRORS,
@@ -121,7 +128,7 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
 
             # Create new session for the event loop
             connector = aiohttp.TCPConnector(ssl=self.ssl_context)
-            session = aiohttp.ClientSession(connector=connector)
+            session = aiohttp.ClientSession(connector=connector, timeout=_HTTP_TIMEOUT)
             self._sessions[loop] = session
 
             return session
@@ -269,7 +276,7 @@ class OpenAICompatibleLanguageModel(AbstractLanguageModel):
         # create a single session for all requests in this call
         # Use the same SSL behavior as requests library
         connector = aiohttp.TCPConnector(ssl=self.ssl_context)
-        async with aiohttp.ClientSession(connector=connector) as session:
+        async with aiohttp.ClientSession(connector=connector, timeout=_HTTP_TIMEOUT) as session:
 
             @backoff.on_exception(
                 backoff.expo,

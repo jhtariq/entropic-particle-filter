@@ -133,6 +133,47 @@ def _select_items_stratified(records, limit):
     return chosen
 
 
+def _select_items_catlen(records, limit):
+    """Proportional across (category, length_type) cells; within a cell ordered by
+    unique_id. Deterministic, no RNG.
+
+    Unlike `_select_items_stratified`, which is smallest-audio-first WITHIN a category and
+    therefore skews a subset toward short clips, this preserves the full set's duration mix
+    (largest-remainder apportionment), so subset accuracy stays comparable to full-set
+    numbers. Ordering inside a cell is by unique_id rather than file size so there is no
+    length bias inside the cell either.
+    """
+    single = [r for r in records if len(r.audio_paths) == 1]
+    by_cell = defaultdict(list)
+    for r in single:
+        by_cell[(r.category, r.length_type)].append(r)
+    for cell in by_cell:
+        by_cell[cell].sort(key=lambda r: str(r.unique_id))
+
+    ordered = sorted(single, key=lambda r: (r.category, r.length_type, str(r.unique_id)))
+    if limit is None or limit >= len(single):
+        return ordered
+
+    total = len(single)
+    exact = {c: limit * len(v) / total for c, v in by_cell.items()}
+    take = {c: min(int(e), len(by_cell[c])) for c, e in exact.items()}
+    # hand out the leftover seats by largest fractional remainder (ties: bigger cell, then name)
+    order = sorted(by_cell, key=lambda c: (-(exact[c] - int(exact[c])), -len(by_cell[c]), c))
+    remaining = limit - sum(take.values())
+    i, guard = 0, 0
+    while remaining > 0 and guard < 4 * max(1, len(order)):
+        c = order[i % len(order)]
+        if take[c] < len(by_cell[c]):
+            take[c] += 1
+            remaining -= 1
+        i += 1
+        guard += 1
+
+    chosen = [r for c in sorted(by_cell) for r in by_cell[c][: take[c]]]
+    chosen.sort(key=lambda r: (r.category, r.length_type, str(r.unique_id)))
+    return chosen
+
+
 def _select_all(records, limit):
     """Every MCQ record (incl. multi-audio), parquet order; respects limit if given."""
     return records if limit is None else records[:limit]

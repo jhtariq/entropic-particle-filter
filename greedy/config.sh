@@ -126,6 +126,16 @@ BENCH_MMAR_EXPECTED=1000                   # 1,000 items (996 gradeable)
 BENCH_MMSU_SUBSET="full"
 BENCH_MMSU_EXPECTED=5000                   # 5,000 items (all gradeable)
 
+# STAR-Bench (internlm/STAR-Bench v1.0) — NOT part of the 18-cell GREEDY_BENCHES
+# sweep (not added to GREEDY_MODELS/GREEDY_BENCHES above); wired in as an
+# addressable bench_cfg case for a dedicated 4-model launch
+# (greedy/run_star_bench_full.sh + greedy/smoke_star_bench.sh), same run_cell
+# machinery. "full" = Foundational Perception + Spatial Reasoning (951 + 502 =
+# 1,453 gradeable items); Temporal Reasoning is excluded (no gold answer in v1.0).
+BENCH_STAR_BENCH_SUBSET="full"
+BENCH_STAR_BENCH_EXPECTED=1453
+: "${DATA_STAR_BENCH:=/work/hdd/bcey/awaheed/its-for-audio-reasoning/star-bench}"
+
 : "${DATA_TESTMINI:=$EPF_DATA_ROOT/mmau_pro_testmini}"     # MMAU-Pro parquets
 : "${DATA_AUDIO:=$EPF_DATA_ROOT/mmau_pro_audio}"           # MMAU-Pro full-test audio (53 GB)
 : "${DATA_MMAR:=$EPF_DATA_ROOT/mmar}"                      # MMAR-meta.json + audio/ (3.5 GB)

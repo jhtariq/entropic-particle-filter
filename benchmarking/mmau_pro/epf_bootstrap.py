@@ -41,8 +41,8 @@ NAMES = {4: "plan-and-solve", 5: "least-to-most", 7: "format-forcing", 9: "evide
 PROMPT_COLORS = {4: "#1b9e77", 5: "#d95f02", 7: "#7570b3", 9: "#e7298a",
                  1: "#66a61e", 2: "#e6ab02", 3: "#a6761d", 6: "#666666",
                  8: "#1f78b4", 10: "#b2182b", 11: "#542788"}
-SIGNAL_DASH = {"mean_logprob": "solid", "entropy": "dash"}
-SIGNAL_SYMBOL = {"mean_logprob": "circle", "entropy": "square"}
+SIGNAL_DASH = {"mean_logprob": "solid", "entropy": "dash", "random": "dot", "random_iid": "dot"}
+SIGNAL_SYMBOL = {"mean_logprob": "circle", "entropy": "square", "random": "x", "random_iid": "diamond"}
 METRIC_LABELS = {"selected": "Selected (what EPF returns)",
                  "oracle": "Oracle (answer in any particle)",
                  "majority": "Majority vote"}

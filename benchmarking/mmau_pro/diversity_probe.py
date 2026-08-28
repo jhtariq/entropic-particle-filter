@@ -29,20 +29,27 @@ Uses BOTH GPUs: pass two --endpoints; items are round-robined across them. Resum
 import asyncio
 import csv
 import json
+import math
 import os
+import random
 import time
 from collections import Counter, defaultdict
 
 import click
 import numpy as np
 
-from benchmarking.mmau_pro.cot_compare import _select_all, _select_items_stratified
+from benchmarking.mmau_pro.cot_compare import (
+    _select_all,
+    _select_items_catlen,
+    _select_items_stratified,
+)
 from benchmarking.mmau_pro.loader import SUBSET_FILES, load_mmau_mcq
 from benchmarking.mmau_pro.prompt import METHODS, build
 from benchmarking.mmau_pro.scoring import LETTERS, predicted_index
 from its_hub import (
     EntropicParticleFiltering,
     OpenAICompatibleLanguageModel,
+    ParticleFiltering,
     StepGeneration,
 )
 
@@ -99,6 +106,17 @@ def compute_metrics(result, rec) -> dict:
         selected_c = (selected_pred == gold)
         majority_c = (majority_idx == gold)
 
+    # Per-particle weights actually used for resampling and selection, alongside the REAL
+    # self-certainty signal for the same particle. Correlating the two is how the random
+    # arm is proven random (expect ~0). JSONL-only — CSV_FIELDS stays byte-compatible with
+    # epf_report.py / epf_bootstrap.py, which read the CSV.
+    log_weights = [round(float(w), 6) for w in (result.log_weights_lst or [])]
+    signal_mean_logprob = []
+    for p in (result.particles or []):
+        sigs = getattr(p, "partial_signals", None) or []
+        v = sigs[-1].get("mean_logprob") if sigs else None
+        signal_mean_logprob.append(round(float(v), 6) if v is not None else None)
+
     return {
         "n_particles": n,
         "gold_letter": _letter(gold),
@@ -112,6 +130,9 @@ def compute_metrics(result, rec) -> dict:
         "oracle_correct": oracle_c,
         "selected_correct": selected_c,
         "majority_correct": majority_c,
+        "log_weights": log_weights,
+        "signal_mean_logprob": signal_mean_logprob,
+        "steps_used": list(result.steps_used_lst or []),
     }
 
 
@@ -123,10 +144,74 @@ def _base_row(rec, method, signal, budget):
     }
 
 
+class RandomWeightPF(ParticleFiltering):
+    """Particle filtering whose reward is pure noise — the null for the budget curve.
+
+    Every particle draws a fresh U(0,1) at EVERY resampling step, so survival carries no
+    information about answer quality. If the EPF budget curve rises here, the gain cannot
+    be coming from the self-certainty signal.
+
+    Why log(u) and not u: `_self_certainty_logweight` returns a LOG-weight that is fed to
+    softmax, so returning u directly would span at most a factor of e — barely different
+    from uniform. Returning log(u) makes softmax(log u)_i = u_i / sum_j u_j, i.e. exactly
+    "draw a random weight per particle and normalise": genuine random death/duplication
+    with ESS < N, so systematic resampling does real work.
+
+    Subclassing ParticleFiltering rather than EntropicParticleFiltering is what turns
+    annealing off: the tempering override simply does not exist on this object, which is
+    stronger than disabling it by parameter. (TemperatureMethod.BASE is NOT a no-op — it
+    is the most aggressive schedule — so parameter-level "off" is easy to get wrong.)
+
+    ARGMAX selection is kept: argmax over i.i.d. log(u) IS a uniformly random particle, so
+    selection stays consistent with random survival on the unmodified code path. The
+    sibling `uniform_weights` arm needs SAMPLE only because argmax over equal weights
+    degenerates to index 0 — that trap does not apply here.
+    """
+
+    def __init__(self, *args, seed: int | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._wrng = random.Random(seed)
+
+    def _draw(self) -> float:
+        return math.log(max(self._wrng.random(), 1e-12))
+
+    def _self_certainty_logweight(self, summary: dict) -> float:
+        # `summary` (the real mean_logprob/entropy) is deliberately ignored. It is still
+        # recorded in Particle.partial_signals, so the arm can be proven uninformative
+        # post-hoc by correlating stored log_weights against it.
+        return self._draw()
+
+    async def _apropagate(self, *args, **kwargs):
+        particles = await super()._apropagate(*args, **kwargs)
+        # The base implementation weights ACTIVE particles only (`if is_stopped: continue`).
+        # A particle that stops early would therefore keep its last draw FOREVER and be
+        # re-duplicated every subsequent round — and because stopping correlates with
+        # content (short, decisive trajectories stop first), that frozen-weight advantage
+        # would quietly make survival content-DEPENDENT. That is exactly what this arm must
+        # not do, and it would show up as a spurious trend in budget.
+        #
+        # So redraw for EVERY particle after each propagation: each resampling round sees a
+        # fresh i.i.d. weight vector over the whole swarm, stopped or not.
+        for p in particles:
+            p.partial_log_weights.append(self._draw())
+        return particles
+
+
 def build_epf(signal, temp, max_steps, ess_threshold, early_phase, step_token="\n\n",
-              stop_regex=None, stop_on_repeat=False):
+              stop_regex=None, stop_on_repeat=False, seed=None):
     sg = StepGeneration(step_token=step_token, stop_token="Answer:", max_steps=max_steps,
                         temperature=temp, stop_regex=stop_regex, stop_on_repeat=stop_on_repeat)
+    if signal == "random_iid":
+        # Fresh i.i.d. random reward per particle per step, annealing structurally absent.
+        # Resampling stays SYSTEMATIC so the code path matches the weighted arms exactly
+        # (unlike the uniform `random` arm, where systematic would be a no-death identity).
+        return RandomWeightPF(
+            sg=sg,
+            resampling_method="systematic",
+            self_certainty_signal="mean_logprob",  # inert here; satisfies the validator
+            self_certainty_style="logit",
+            seed=seed,
+        )
     if signal == "random":
         # Random-survival ablation: uniform particle weights (ESS pinned at B, so the
         # entropic annealing never fires) + MULTINOMIAL resampling (systematic with equal
@@ -283,20 +368,46 @@ def make_cli(loader_fn=load_mmau_mcq, subset_choices=SUBSET_FILES,
                        "digits/case/whitespace (guards degenerate sub-question loops)")
     @click.option("--max-tokens-per-step", default=300)
     @click.option("--limit", default=100, help="# items (stratified single-audio, or first-N for --select all)")
-    @click.option("--select", "select_mode", type=click.Choice(["stratified", "all"]), default="stratified",
-                  help="stratified = single-audio stratified to --limit; all = every MCQ (incl. multi-audio)")
+    @click.option("--select", "select_mode",
+                  type=click.Choice(["stratified", "catlen", "all"]), default="stratified",
+                  help="stratified = single-audio, category-balanced, smallest-audio-first; "
+                       "catlen = proportional over (category, length_type) so the subset keeps "
+                       "the full set's duration mix; all = every MCQ (incl. multi-audio)")
+    @click.option("--min-choices", default=1, type=int,
+                  help="drop items with fewer than N answer choices BEFORE selection "
+                       "(MMAU-Pro ships 106 single-choice items that are trivially correct)")
+    @click.option("--shard", default=None,
+                  help="i/N — take records[i::N] after selection; each shard needs its OWN --jsonl")
+    @click.option("--seed", default=None, type=int,
+                  help="seed the random-weight draw and the resampling RNGs (offset by shard index)")
     @click.option("--max-inflight", default=64, help="target concurrent requests PER endpoint")
+    @click.option("--store-text", is_flag=True, default=False,
+                  help="store every particle's final response text in the JSONL rows "
+                       "(fields 'responses' + 'selected_text'; JSONL-only, CSV unchanged)")
+    @click.option("--store-steps", is_flag=True, default=False,
+                  help="store every particle's full trajectory in the JSONL rows: per-step "
+                       "texts in lineage order plus per-step log-weights and raw signals "
+                       "(field 'particles'; JSONL-only, CSV unchanged)")
+    @click.option("--save-traces", is_flag=True, default=False,
+                  help="record the COMPLETE filtering trace per row (field 'trace'): every "
+                       "particle snapshot before each resample — including lineages the "
+                       "resample prunes — plus resample parents, post-tempering "
+                       "probabilities and annealing temperature. trace_explorer-compatible; "
+                       "JSONL-only, CSV unchanged")
     @click.option("--jsonl", "jsonl_path", default=None)
     @click.option("--csv", "csv_path", default=None)
     @click.option("--log", "log_path", default=None)
     def main(endpoints, model_name, api_key, data_root, subset, audio_root, prompts, signals,
              budgets, temp, ess_threshold, early_phase, max_steps, step_token, stop_regex,
-             stop_on_repeat, max_tokens_per_step, limit, select_mode, max_inflight,
-             jsonl_path, csv_path, log_path):
+             stop_on_repeat, max_tokens_per_step, limit, select_mode, min_choices, shard, seed,
+             max_inflight, store_text, store_steps, save_traces, jsonl_path, csv_path,
+             log_path):
         _run_probe(loader_fn, endpoints, model_name, api_key, data_root, subset, audio_root,
                    prompts, signals, budgets, temp, ess_threshold, early_phase, max_steps,
                    step_token, stop_regex, stop_on_repeat, max_tokens_per_step, limit,
-                   select_mode, max_inflight, jsonl_path, csv_path, log_path)
+                   select_mode, max_inflight, jsonl_path, csv_path, log_path,
+                   shard=shard, seed=seed, min_choices=min_choices, store_text=store_text,
+                   store_steps=store_steps, save_traces=save_traces)
 
     return main
 
@@ -304,18 +415,54 @@ def make_cli(loader_fn=load_mmau_mcq, subset_choices=SUBSET_FILES,
 def _run_probe(loader_fn, endpoints, model_name, api_key, data_root, subset, audio_root,
                prompts, signals, budgets, temp, ess_threshold, early_phase, max_steps,
                step_token, stop_regex, stop_on_repeat, max_tokens_per_step, limit,
-               select_mode, max_inflight, jsonl_path, csv_path, log_path):
+               select_mode, max_inflight, jsonl_path, csv_path, log_path,
+               shard=None, seed=None, min_choices=1, store_text=False, store_steps=False,
+               save_traces=False):
     eps = [e.strip() for e in endpoints.split(",") if e.strip()]
     methods = [int(m) for m in prompts.split(",")]
     sigs = [s.strip() for s in signals.split(",") if s.strip()]
     buds = [int(b) for b in budgets.split(",")]
 
+    # A typo in --signals would otherwise fall through to the weighted path and silently
+    # produce a self-certainty run labelled as something else.
+    known_sigs = {"mean_logprob", "entropy", "random", "random_iid"}
+    bad = [s for s in sigs if s not in known_sigs]
+    if bad:
+        raise SystemExit(f"unknown --signals {bad}; choose from {sorted(known_sigs)}")
+
+    shard_i, shard_n = 0, 1
+    if shard:
+        shard_i, shard_n = (int(x) for x in str(shard).split("/"))
+        if not (shard_n >= 1 and 0 <= shard_i < shard_n):
+            raise SystemExit(f"--shard must be i/N with 0 <= i < N, got {shard!r}")
+
+    if seed is not None:
+        # its_hub holds no RNG of its own: _resampling_systematic uses the numpy legacy
+        # global and SelectionMethod.SAMPLE uses the stdlib global. Seed both, offset by
+        # shard so parallel shards do not replay an identical stream.
+        random.seed(seed + shard_i)
+        np.random.seed((seed + shard_i) % (2**32))
+
     recs = loader_fn(data_root, subset=subset, audio_root=audio_root)
-    records = _select_all(recs, limit) if select_mode == "all" else _select_items_stratified(recs, limit)
+    n_loaded = len(recs)
+    if min_choices > 1:
+        recs = [r for r in recs if len(r.choices) >= min_choices]
+        print(f"min-choices={min_choices}: kept {len(recs)} of {n_loaded} records "
+              f"({n_loaded - len(recs)} dropped as trivially correct / non-MCQ)", flush=True)
+    selector = {"all": _select_all, "catlen": _select_items_catlen}.get(
+        select_mode, _select_items_stratified)
+    records = selector(recs, limit)
+    n_selected = len(records)
+    if shard_n > 1:
+        records = records[shard_i::shard_n]
     cat_mix = Counter(r.category for r in records)
+    cell_mix = Counter((r.category, r.length_type) for r in records)
     print(f"EPF diversity probe: prompts={methods} signals={sigs} budgets={buds} "
-          f"items={len(records)} endpoints={len(eps)}", flush=True)
+          f"items={len(records)}/{n_selected} endpoints={len(eps)} "
+          f"select={select_mode} shard={shard_i}/{shard_n} seed={seed}", flush=True)
     print("category mix: " + ", ".join(f"{c}:{n}" for c, n in sorted(cat_mix.items())), flush=True)
+    print("category x length: " + ", ".join(
+        f"{c}/{lt}:{n}" for (c, lt), n in sorted(cell_mix.items())), flush=True)
 
     lms = [OpenAICompatibleLanguageModel(
         endpoint=ep, api_key=api_key, model_name=model_name,
@@ -326,14 +473,40 @@ def _run_probe(loader_fn, endpoints, model_name, api_key, data_root, subset, aud
         print(f"resume: {len(done)} (item,method,signal,budget) already done", flush=True)
 
     async def _run_one(epf, method, signal, budget, rec, lm, sem, out, lock):
+        algo = type(epf).__name__
+        anneal = isinstance(epf, EntropicParticleFiltering)
         async with sem:
             try:
                 msgs, _seed = build(method, rec, audio_mode="local-path")
-                res = await epf.ainfer(lm, msgs, budget, return_response_only=False)
+                res = await epf.ainfer(lm, msgs, budget, return_response_only=False,
+                                       record_trace=save_traces)
                 row = {**_base_row(rec, method, signal, budget),
-                       **compute_metrics(res, rec), "error": None}
+                       **compute_metrics(res, rec),
+                       "algo": algo, "annealing": anneal, "error": None}
+                if store_text:
+                    contents = [p.get("content", "") for p in res.responses]
+                    sel = res.selected_index
+                    row["responses"] = contents
+                    row["selected_text"] = contents[sel] if 0 <= sel < len(contents) else ""
+                if save_traces:
+                    row["trace"] = res.trace
+                if store_steps:
+                    # Full trajectory per FINAL particle, in lineage order. Resampling
+                    # deep-copies survivors, so duplicated particles legitimately share
+                    # identical step prefixes — that duplication IS the resampling record.
+                    row["particles"] = [
+                        {"steps": list(p.steps),
+                         "log_weights": [round(float(w), 6) for w in p.partial_log_weights],
+                         "signals": [
+                             {k: (round(float(v), 6) if isinstance(v, float) else v)
+                              for k, v in s.items()}
+                             for s in p.partial_signals],
+                         "stopped": bool(p.is_stopped)}
+                        for p in (res.particles or [])
+                    ]
             except Exception as e:
                 row = {**_base_row(rec, method, signal, budget),
+                       "algo": algo, "annealing": anneal,
                        "n_particles": budget, "gold_letter": _letter(rec.answer_index),
                        "selected_letter": "", "majority_letter": "", "preds": "",
                        "distinct_ratio": None, "consensus": None, "ess_ratio": None,
@@ -355,7 +528,15 @@ def _run_probe(loader_fn, endpoints, model_name, api_key, data_root, subset, aud
                     for budget in buds:
                         epf = build_epf(signal, temp, max_steps, ess_threshold, early_phase,
                                         step_token=step_token, stop_regex=stop_regex,
-                                        stop_on_repeat=stop_on_repeat)
+                                        stop_on_repeat=stop_on_repeat,
+                                        seed=(None if seed is None else seed + shard_i))
+                        algo = type(epf).__name__
+                        # Annealing lives ONLY on EntropicParticleFiltering. Recording the
+                        # class per row is the proof that it could not have fired.
+                        anneal_on = isinstance(epf, EntropicParticleFiltering)
+                        if signal == "random_iid" and anneal_on:
+                            raise SystemExit("random_iid must not use an annealing algorithm")
+                        print(f"    algo={algo} annealing={'ON' if anneal_on else 'OFF'}", flush=True)
                         per_ep = max(1, max_inflight // budget)
                         sems = [asyncio.Semaphore(per_ep) for _ in lms]
                         todo = [r for r in records

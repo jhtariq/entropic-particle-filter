@@ -26,6 +26,8 @@ bench_cfg() {  # bench_cfg <mmau|mmar|mmsu> -> sets B_SUBSET B_EXPECTED B_DATA_R
           B_DATA_ROOT="$DATA_MMAR";      B_AUDIO_ROOT="" ;;
     mmsu) B_SUBSET="$BENCH_MMSU_SUBSET"; B_EXPECTED="$BENCH_MMSU_EXPECTED"
           B_DATA_ROOT="$DATA_MMSU";      B_AUDIO_ROOT="" ;;
+    star_bench) B_SUBSET="$BENCH_STAR_BENCH_SUBSET"; B_EXPECTED="$BENCH_STAR_BENCH_EXPECTED"
+          B_DATA_ROOT="$DATA_STAR_BENCH"; B_AUDIO_ROOT="" ;;
     *)    echo "FATAL: unknown bench '$1'" >&2; return 1 ;;
   esac
 }

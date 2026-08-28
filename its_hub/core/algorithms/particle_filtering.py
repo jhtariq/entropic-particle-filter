@@ -25,6 +25,10 @@ class ParticleFilteringResult(AbstractScalingResult):
     # final Particle objects (lineage steps + per-step weights/signals); None unless
     # the caller needs trajectory-level introspection — adds memory, so opt-in only
     particles: list | None = None
+    # full per-iteration record (ainfer(record_trace=True)): every particle snapshot
+    # BEFORE each resample — including lineages the resample then prunes — plus the
+    # resample parents, post-tempering probabilities and annealing temperature
+    trace: dict | None = None
 
     @property
     def the_one(self) -> dict:
@@ -256,6 +260,13 @@ class ParticleFiltering(AbstractScalingAlgorithm):
         Returns:
             list of resampled particles
         """
+        indices = self._resampling_systematic_indices(probabilities, num_particles)
+        resampled_particles = [particles[i] for i in indices]
+        return resampled_particles
+
+    def _resampling_systematic_indices(
+        self, probabilities: np.ndarray, num_particles: int
+    ) -> list[int]:
         positions = (np.arange(num_particles) + np.random.uniform(0, 1)) / num_particles
 
         indices = np.zeros(num_particles, dtype=int)
@@ -272,13 +283,28 @@ class ParticleFiltering(AbstractScalingAlgorithm):
             else:
                 j += 1
 
-        resampled_particles = [particles[i] for i in indices]
-        return resampled_particles
+        return [int(i) for i in indices]
 
     def _resampling_multinomial(
         self, particles: list[Particle], probabilities: list[float], num_particles: int
     ) -> list[Particle]:
         return random.choices(particles, weights=probabilities, k=num_particles)
+
+    def _resampling_indices(
+        self, probabilities, num_particles: int
+    ) -> list[int]:
+        """Resample and return the chosen PARENT INDEX per child slot.
+
+        Consumes the RNG streams identically to `_resampling` (systematic: one
+        np.random.uniform; multinomial: one random.choices of k draws), so
+        recording indices instead of particles does not perturb determinism.
+        """
+        if self.resampling_method == ResamplingMethod.SYSTEMATIC:
+            return self._resampling_systematic_indices(probabilities, num_particles)
+        elif self.resampling_method == ResamplingMethod.MULTINOMIAL:
+            return random.choices(range(num_particles), weights=probabilities, k=num_particles)
+        else:
+            raise ValueError(f"Invalid resampling method: {self.resampling_method}")
 
     def _resampling(
         self, particles: list[Particle], probabilities: list[float], num_particles: int
@@ -298,6 +324,7 @@ class ParticleFiltering(AbstractScalingAlgorithm):
         Plain particle filtering uses an untempered softmax; entropic particle
         filtering overrides this to apply temperature annealing.
         """
+        self._last_temperature = 1.0  # for trace recording; PF never tempers
         return _softmax(log_weights)
 
     async def ainfer(
@@ -308,6 +335,7 @@ class ParticleFiltering(AbstractScalingAlgorithm):
         return_response_only: bool = True,
         tools: list[dict] | None = None,
         tool_choice: str | dict | None = None,
+        record_trace: bool = False,
     ) -> dict | ParticleFilteringResult:
         """run inference asynchronously with particle filtering"""
         assert budget >= 1, "budget must be a positive integer"
@@ -326,7 +354,9 @@ class ParticleFiltering(AbstractScalingAlgorithm):
         ]
 
         current_step = 0
+        trace_iters: list[dict] | None = [] if record_trace else None
         while not all(p.is_stopped for p in particles):
+            lens_before = [len(p.steps) for p in particles] if record_trace else None
             particles = await self._apropagate(
                 lm,
                 particles,
@@ -345,11 +375,35 @@ class ParticleFiltering(AbstractScalingAlgorithm):
                 log_weights, current_step, num_particles
             )
 
-            # resample with replacement and duplicate the resampled particles
-            particles = [
-                p.deepcopy()
-                for p in self._resampling(particles, probabilities, num_particles)
-            ]
+            if record_trace:
+                # snapshot AFTER generation, BEFORE the resample: this is the only
+                # moment a lineage the resample is about to prune still exists
+                snap = [
+                    {
+                        "new_text": (p.steps[-1] if len(p.steps) > lb else None),
+                        "stopped": p.is_stopped,
+                        "cum_log_weight": float(p.log_weight),
+                    }
+                    for p, lb in zip(particles, lens_before)
+                ]
+                parent_idx = self._resampling_indices(probabilities, num_particles)
+                trace_iters.append({
+                    "step": current_step,
+                    "particles": snap,
+                    "resample": {
+                        "temperature": float(getattr(self, "_last_temperature", 1.0)),
+                        "random_survival": bool(getattr(self, "uniform_weights", False)),
+                        "probabilities": [float(x) for x in probabilities],
+                        "parents": parent_idx,
+                    },
+                })
+                particles = [particles[i].deepcopy() for i in parent_idx]
+            else:
+                # resample with replacement and duplicate the resampled particles
+                particles = [
+                    p.deepcopy()
+                    for p in self._resampling(particles, probabilities, num_particles)
+                ]
 
         # select the chosen particle (untempered weights)
         log_weights = [p.log_weight for p in particles]
@@ -374,6 +428,15 @@ class ParticleFiltering(AbstractScalingAlgorithm):
             selected_index=selected_index,
             steps_used_lst=[len(p.steps) for p in particles],
             particles=particles,
+            trace=(
+                {
+                    "iterations": trace_iters,
+                    "final_log_weights": [float(w) for w in log_weights],
+                    "selected_index": int(selected_index),
+                }
+                if record_trace
+                else None
+            ),
         )
 
         return result.the_one if return_response_only else result
@@ -526,5 +589,6 @@ class EntropicParticleFiltering(ParticleFiltering):
         temperature = self._temperature_annealing(
             probabilities, current_step, num_particles
         )
+        self._last_temperature = float(temperature)  # for trace recording
         # apply temperature annealing to the log weights
         return _softmax(np.asarray(log_weights) * (1 / temperature))

@@ -97,6 +97,20 @@ def main() -> int:
 
     print("== loading reference MellowWrapper ==")
     sys.path.insert(0, args.code_dir)
+
+    # torchaudio >= 2.9 delegates decode to torchcodec, which is not installed on this
+    # stack; route torchaudio.load through soundfile (same normalized float32 layout)
+    # so the reference wrapper's load_audio_into_tensor works.
+    import soundfile as _sf
+    import torch as _torch
+    import torchaudio as _ta
+
+    def _sf_load(path, *a, **kw):
+        data, sr = _sf.read(path, dtype="float32", always_2d=True)
+        return _torch.from_numpy(data.T), sr
+
+    _ta.load = _sf_load
+
     from mellow import MellowWrapper
 
     dev = args.device.split(":")[-1]
@@ -114,7 +128,7 @@ def main() -> int:
 
     reference.tokenizer.encode_plus = _encode_plus_compat
 
-    records = load_mmau_mcq(args.data_root, subset="full")
+    records = load_mmau_mcq(args.data_root, subset="full", audio_root=args.audio_root)
     single = [r for r in records if len(r.audio_paths) == 1]
 
     # ---- 1. greedy parity on clips where the reference path is deterministic ----------
@@ -131,7 +145,7 @@ def main() -> int:
         ref_out = reference.generate(
             examples=[[p, p, text]], max_len=args.max_new, top_p=0.8, temperature=1.0
         )[0]
-        shim = engine.generate(_greedy_req(text, [p, p], args.max_new))
+        shim = engine.generate(_greedy_req(text, [p, p], args.max_new))[0]
         match = shim["content"] == ref_out
         failures += 0 if match else 1
         n_tok += shim["completion_tokens"]
@@ -144,6 +158,24 @@ def main() -> int:
             print(f"    shim: {shim['content']!r}")
     dt = _time.time() - t0
     print(f"  shim+ref wall {dt:.1f}s for {args.n_parity} items ({n_tok} shim tokens)")
+
+    # ---- 1b. batched-n consistency: greedy n=8 rows must all equal the n=1 output ----
+    batch_ok = True
+    if short:
+        rec = short[0]
+        text = _mcq_text(rec)
+        p = rec.audio_paths[0]
+        one = engine.generate(_greedy_req(text, [p, p], args.max_new))[0]["content"]
+        req8 = _greedy_req(text, [p, p], args.max_new)
+        req8.n = 8
+        eight = [r["content"] for r in engine.generate(req8)]
+        batch_ok = len(eight) == 8 and all(t == one for t in eight)
+        print(f"\n== 1b. BATCH n=8 greedy consistency: {'PASS' if batch_ok else 'FAIL'} ==")
+        if not batch_ok:
+            print(f"    n=1 : {one!r}")
+            for k, t in enumerate(eight):
+                if t != one:
+                    print(f"    n8[{k}]: {t!r}")
 
     # ---- 2. crop determinism on a >10 s clip ------------------------------------------
     long_rec = next(r for r in single if _duration_s(r.audio_paths[0]) > 10.0)
@@ -186,7 +218,7 @@ def main() -> int:
         answers = {}
         for fill in ("silence", "duplicate"):
             engine.single_audio_fill = fill
-            out = engine.generate(_greedy_req(text, [p], args.max_new))
+            out = engine.generate(_greedy_req(text, [p], args.max_new))[0]
             answers[fill] = (out["content"], predicted_index(out["content"], rec.choices))
         rows.append((rec, answers))
     engine.single_audio_fill = "silence"
@@ -209,8 +241,9 @@ def main() -> int:
         print(f"    {rec.unique_id}: silence={a['silence'][0][:60]!r} | "
               f"duplicate={a['duplicate'][0][:60]!r}")
 
-    ok = failures == 0 and crop_ok and mp3_ok
-    print(f"\nRESULT: parity_failures={failures} crop={'ok' if crop_ok else 'FAIL'} "
+    ok = failures == 0 and crop_ok and mp3_ok and batch_ok
+    print(f"\nRESULT: parity_failures={failures} batch={'ok' if batch_ok else 'FAIL'} "
+          f"crop={'ok' if crop_ok else 'FAIL'} "
           f"mp3={'ok' if mp3_ok else 'FAIL'} -> {'PASS' if ok else 'FAIL'}")
     return 0 if ok else 1
 

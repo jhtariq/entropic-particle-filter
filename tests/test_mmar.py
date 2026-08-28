@@ -232,9 +232,10 @@ def test_mmau_cli_pinned_byte_identical():
     assert p["stop_on_repeat"].default is False
     assert p["max_tokens_per_step"].default == 300
     assert p["limit"].default == 100
-    assert list(p["select_mode"].type.choices) == ["stratified", "all"]
+    assert list(p["select_mode"].type.choices) == ["stratified", "catlen", "all"]
     assert p["select_mode"].default == "stratified"
     assert p["max_inflight"].default == 64
+    assert p["store_text"].default is False
     assert p["jsonl_path"].default is None and p["csv_path"].default is None
     assert p["log_path"].default is None
 
