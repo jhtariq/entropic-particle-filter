@@ -1,0 +1,62 @@
+#!/bin/bash
+# Round-4 pipeline for an interactive 2-GPU node: one invocation per model/GPU.
+#   bash run_r4_node.sh 3b 0 8520
+#   bash run_r4_node.sh 7b 1 8521
+# Phases: smoke (limit 4 -> abort on failure), main 6-arm b8 @400, ms3 b8 @400.
+# Same resume-safe JSONLs as sbatch_round4.sbatch — NEVER run while the sbatch
+# main jobs are running (single-writer rule); cancel them first.
+set -uo pipefail
+MODEL="${1:?3b|7b}"; GPU="${2:?gpu index}"; PORT="${3:?port}"
+D=/work/hdd/bcey/awaheed/its-for-audio-reasoning/epf_deepdive
+PY=/u/awaheed/envs/epf/bin/python
+case "$MODEL" in
+  3b) MN=qwen-omni-3b; PROMPT=4 ;;
+  7b) MN=qwen-omni;    PROMPT=5 ;;
+  *) echo "FATAL bad MODEL=$MODEL"; exit 1 ;;
+esac
+ARMS_MAIN="raw_probe,retire_t3,retire_t1,retire_every_t3,retire_every_t1,retire_every_raw"
+ARMS_MS3="probe_adaptive_t3,retire_t3"
+
+export CUDA_VISIBLE_DEVICES="$GPU"
+export SERVE_TAG="node_${MODEL}"
+bash "$D/serve_model.sh" "$MODEL" "$PORT"
+t=0; while [ $t -lt 1500 ]; do
+  curl -sf "http://localhost:$PORT/v1/models" >/dev/null 2>&1 && break; sleep 10; t=$((t+10)); done
+[ $t -lt 1500 ] || { echo "FATAL $MODEL server not healthy"; exit 1; }
+echo "$MODEL server healthy after ${t}s (gpu $GPU, port $PORT)"
+
+check_rows () {
+  "$PY" - "$1" "$2" <<'EOF'
+import json, sys
+ok = sum(1 for L in open(sys.argv[1]) if not json.loads(L).get("error"))
+print(f"  smoke {sys.argv[1].split('/')[-1]}: {ok}/{sys.argv[2]} clean rows")
+sys.exit(0 if ok >= int(sys.argv[2]) else 1)
+EOF
+}
+
+echo "=== $(date '+%F %T') SMOKE $MODEL ==="
+"$PY" "$D/probe_epf.py" --endpoint http://localhost:$PORT/v1 --model-name "$MN" \
+  --bench mmar --limit 4 --budgets 4 --prompt-method "$PROMPT" --max-steps 6 \
+  --arms "$ARMS_MAIN" --max-inflight 48 --jsonl "$D/probe_out/smoke_pre_${MODEL}.jsonl" \
+  && check_rows "$D/probe_out/smoke_pre_${MODEL}.jsonl" 24 \
+  || { echo "FATAL smoke main failed"; exit 1; }
+"$PY" "$D/probe_epf.py" --endpoint http://localhost:$PORT/v1 --model-name "$MN" \
+  --bench mmar --limit 4 --budgets 4 --prompt-method "$PROMPT" --max-steps 3 \
+  --arms "$ARMS_MS3" --max-inflight 48 --jsonl "$D/probe_out/smoke_pre_ms3_${MODEL}.jsonl" \
+  && check_rows "$D/probe_out/smoke_pre_ms3_${MODEL}.jsonl" 8 \
+  || { echo "FATAL smoke ms3 failed"; exit 1; }
+echo "=== $(date '+%F %T') SMOKE $MODEL PASS ==="
+
+echo "=== $(date '+%F %T') MAIN $MODEL b8 @400 ==="
+"$PY" "$D/probe_epf.py" --endpoint http://localhost:$PORT/v1 --model-name "$MN" \
+  --bench mmar --limit 400 --budgets 8 --prompt-method "$PROMPT" --max-steps 6 \
+  --arms "$ARMS_MAIN" --max-inflight 96 --jsonl "$D/probe_out/mmar_${MODEL}_b8_round4.jsonl"
+rc1=$?
+echo "=== $(date '+%F %T') MS3 $MODEL b8 @400 ==="
+"$PY" "$D/probe_epf.py" --endpoint http://localhost:$PORT/v1 --model-name "$MN" \
+  --bench mmar --limit 400 --budgets 8 --prompt-method "$PROMPT" --max-steps 3 \
+  --arms "$ARMS_MS3" --max-inflight 96 --jsonl "$D/probe_out/mmar_${MODEL}_b8_ms3.jsonl"
+rc2=$?
+kill "$(cat "$D/serve_${SERVE_TAG}.pid")" 2>/dev/null
+echo "=== $(date '+%F %T') NODE RUN $MODEL DONE rc_main=$rc1 rc_ms3=$rc2 ==="
+exit $(( rc1 || rc2 ))

@@ -43,6 +43,9 @@ class Particle:
     # raw per-step logprob summaries ({mean_logprob, entropy, num_tokens}) in lineage
     # order — kept alongside the transformed weights for trajectory introspection
     partial_signals: list[dict] = field(default_factory=list)
+    # per-step answer-probe letter distributions ({letter: prob mass} or None), in
+    # lineage order — populated only by AnswerProbeParticleFiltering
+    probe_dists: list[dict | None] = field(default_factory=list)
 
     @property
     def log_weight(self) -> float:
@@ -58,6 +61,7 @@ class Particle:
             is_stopped=self.is_stopped,
             partial_log_weights=copy.deepcopy(self.partial_log_weights),
             partial_signals=copy.deepcopy(self.partial_signals),
+            probe_dists=copy.deepcopy(self.probe_dists),
         )
 
 

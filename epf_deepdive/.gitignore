@@ -1,0 +1,10 @@
+# Result data and logs stay on Delta (probe_out/ alone is multi-GB, some
+# individual JSONLs exceed GitHub's 100MB file limit) -- only code/config
+# for this directory is tracked in git.
+probe_out/
+out_omni/
+out_omni_epf2/
+mmar_omni_baseline/
+*.log
+*.pid
+__pycache__/

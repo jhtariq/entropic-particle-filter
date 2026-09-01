@@ -11,6 +11,10 @@ from its_hub.api import (
     AbstractScalingAlgorithm,
     AbstractScalingResult,
 )
+from its_hub.core.algorithms.answer_probe_pf import (
+    AnswerProbeParticleFiltering,
+    answer_vote,
+)
 from its_hub.core.algorithms.particle_filtering import (
     EntropicParticleFiltering,
     ParticleFiltering,
@@ -34,6 +38,8 @@ __all__ = [  # noqa: RUF022
     "ParticleFiltering",
     "EntropicParticleFiltering",
     "ParticleFilteringResult",
+    "AnswerProbeParticleFiltering",
+    "answer_vote",
     # Step generation and orchestration
     "StepGeneration",
     "LMOrchestrator",
