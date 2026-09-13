@@ -1,0 +1,38 @@
+{
+  "judge": {
+    "repo": "Qwen/Qwen3-Omni-30B-A3B-Instruct",
+    "revision": "26291f793822fb6be9555850f06dfe95f2d7e695",
+    "served_name": "Qwen/Qwen3-Omni-30B-A3B-Instruct",
+    "notes": "66GB bf16. Fits ONE A100-80GB (util 0.92). vLLM 0.22.1 REQUIRES --mm-encoder-attn-backend TORCH_SDPA on every GPU generation (encoder passes CPU cu_seqlens to flash-attn varlen kernels). First run per GPU arch pays ~25min FlashInfer CUTLASS MoE JIT, cached in ~/.cache/flashinfer."
+  },
+  "qwen-omni": {
+    "repo": "Qwen/Qwen2.5-Omni-7B",
+    "revision": "ae9e1690543ffd5c0221dc27f79834d0294cba00",
+    "served_name": "qwen-omni",
+    "notes": "Served model name is qwen-omni, NOT qwen-omni-7b."
+  },
+  "qwen-omni-3b": {
+    "repo": "Qwen/Qwen2.5-Omni-3B",
+    "revision": "f75b40e3da2003cdd6e1829b1f420ca70797c34e",
+    "served_name": "qwen-omni-3b",
+    "notes": ""
+  },
+  "qwen2-audio": {
+    "repo": "Qwen/Qwen2-Audio-7B-Instruct",
+    "revision": "0a095220c30b7b31434169c3086508ef3ea5bf0a",
+    "served_name": "qwen2-audio",
+    "notes": ""
+  },
+  "phi4mm": {
+    "repo": "microsoft/Phi-4-multimodal-instruct",
+    "revision": "93f923e1a7727d1c4f446756212d9d3e8fcc5d81",
+    "served_name": "phi4mm",
+    "notes": "Speech LoRA (rank 320) lives in the snapshot's speech-lora/ dir. Every request MUST target model name 'speech' (the LoRA adapter) - the base name is accepted but silently skips the LoRA."
+  },
+  "kimi-audio": {
+    "repo": "moonshotai/Kimi-Audio-7B-Instruct",
+    "revision": "9a82a84c37ad9eb1307fb6ed8d7b397862ef9e6b",
+    "served_name": "kimi-audio",
+    "notes": "NEVER plain `vllm serve`. Serve via the repo wrapper benchmarking/mmau_pro/run19/serve_kimi.py with --chat-template benchmarking/mmau_pro/run19/template_kimi_audio_epf.jinja."
+  }
+}
