@@ -1,10 +1,22 @@
 #!/usr/bin/env bash
 # One-command starbench smoke for a 2-GPU box (e.g. 2x RTX PRO 6000 96GB):
-# judge on GPU 0, Omni-3B generator on GPU 1, then the smoke-gated runner
-# stopped right after its 2-item gate (limit stays tiny via SMOKE_ONLY).
-# Requires: env installed, BABEL_STARBENCH_ROOT set, models downloaded
-# (sanity_check_models.py judge qwen-omni-3b).
+# judge on GPU 0, YOUR model on GPU 1, then a 4-item end-to-end sanity pass.
+# Each workstation deploys one generator - download only judge + that model:
+#   python sanity_check_models.py judge <MODEL>
+# Usage: launch_starbench_smoke.sh MODEL
+#   MODEL: qwen-omni | qwen-omni-3b | qwen2-audio | phi4mm | kimi-audio
 set -euo pipefail
+
+model="${1:?usage: launch_starbench_smoke.sh MODEL (qwen-omni|qwen-omni-3b|qwen2-audio|phi4mm|kimi-audio)}"
+
+case "$model" in
+  qwen-omni)    req_name=qwen-omni;    health=qwen-omni;    port=8812 ;;
+  qwen-omni-3b) req_name=qwen-omni-3b; health=qwen-omni-3b; port=8813 ;;
+  qwen2-audio)  req_name=qwen2-audio;  health=qwen2-audio;  port=8815 ;;
+  phi4mm)       req_name=speech;       health=phi4mm;       port=8814 ;;
+  kimi-audio)   req_name=kimi-audio;   health=kimi-audio;   port=8811 ;;
+  *) echo "unknown MODEL=$model" >&2; exit 1 ;;
+esac
 
 cd "$(dirname "$0")"
 mkdir -p out
@@ -20,15 +32,13 @@ nvidia-smi > out/nvidia-smi.txt
 nohup bash serve_judge_96g.sh 0 > out/serve_judge.log 2>&1 &
 judge_pid=$!
 echo "judge starting on GPU 0 (pid $judge_pid, port ${JUDGE_PORT:-8801})"
-nohup bash serve_gen.sh qwen-omni-3b 1 8813 > out/serve_qwen-omni-3b.log 2>&1 &
+nohup bash serve_gen.sh "$model" 1 "$port" > "out/serve_${model}.log" 2>&1 &
 gen_pid=$!
-echo "3B gen starting on GPU 1 (pid $gen_pid, port 8813)"
+echo "$model starting on GPU 1 (pid $gen_pid, port $port)"
 
-# The runner's built-in gate does the actual smoke; running with a 4-item
-# limit keeps this launcher a pure sanity pass.
-gen_url="http://localhost:8813/v1"
+gen_url="http://localhost:$port/v1"
 judge_url="http://localhost:${JUDGE_PORT:-8801}/v1"
-until curl -s -m 3 "$gen_url/models" 2>/dev/null | grep -q qwen-omni-3b; do sleep 20; done
+until curl -s -m 3 "$gen_url/models" 2>/dev/null | grep -q "$health"; do sleep 20; done
 echo "GEN_READY $(date +%H:%M)"
 until curl -s -m 3 "$judge_url/models" 2>/dev/null | grep -q Omni-30B; do sleep 20; done
 echo "JUDGE_READY $(date +%H:%M)"
@@ -36,7 +46,7 @@ echo "JUDGE_READY $(date +%H:%M)"
 rm -f out/smoke_starbench.jsonl
 python probe_epf.py \
   --endpoint "$gen_url" \
-  --model-name qwen-omni-3b \
+  --model-name "$req_name" \
   --bench starbench \
   --limit 4 \
   --arms judge_prm_ess \
@@ -75,4 +85,4 @@ print("STARBENCH_SMOKE_" + ("PASS" if gate else "FAIL"))
 EOF
 
 kill "$judge_pid" "$gen_pid" 2>/dev/null || true
-echo "smoke done - servers stopped; full sweep: bash run_starbench_prm.sh MODEL (serve first)"
+echo "smoke done - servers stopped; full sweep: serve judge+gen, then bash run_starbench_prm.sh $model"

@@ -9,12 +9,16 @@ resampling (NOT resample-every-step). Benchmark: STAR-Bench-Perception, the
 626-item MCQ subset (`macabdul9/STAR-Bench-Perception`), 4 choices each, short
 clips (2.6–6.4 s).
 
+Each workstation hosts the judge + ONE generator. Pick your `MODEL` from
+`qwen-omni | qwen-omni-3b | qwen2-audio | phi4mm | kimi-audio` and download
+only the judge and that model — nothing else:
+
 ```bash
-# env as below (steps 0–1), then:
-python babel-ship/sanity_check_models.py judge qwen-omni-3b   # pinned revisions
+# env as below (steps 0–1), then (example MODEL=qwen-omni):
+python babel-ship/sanity_check_models.py judge qwen-omni      # pinned revisions
 export BABEL_STARBENCH_ROOT=/data/starbench
 python babel-ship/starbench_fetch.py                          # 626 rows + asserts
-bash babel-ship/launch_starbench_smoke.sh                     # judge GPU0, 3B GPU1
+bash babel-ship/launch_starbench_smoke.sh qwen-omni           # judge GPU0, model GPU1
 ```
 
 The smoke must end `STARBENCH_SMOKE_PASS` and its printed sample candidate
