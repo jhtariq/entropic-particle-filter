@@ -1,4 +1,38 @@
-# babel-ship — MMAU-Pro d1k judge-PRM sweeps on an external 4×A100-80GB node
+# babel-ship — external judge-PF sweep kits (d1k · starbench)
+
+## STARBENCH quickstart (2× RTX PRO 6000 96GB or any 2 GPUs ≥80GB)
+
+New v2 setup (differs from every earlier campaign): prompt **P12** (numbered
+`Step N:` lines, ≤10 steps), step delimiter **`\n`** (not `\n\n`), max-steps
+**11**, arm **`judge_prm_ess`** — step-level judging with **ESS-0.5-gated**
+resampling (NOT resample-every-step). Benchmark: STAR-Bench-Perception, the
+626-item MCQ subset (`macabdul9/STAR-Bench-Perception`), 4 choices each, short
+clips (2.6–6.4 s).
+
+```bash
+# env as below (steps 0–1), then:
+python babel-ship/sanity_check_models.py judge qwen-omni-3b   # pinned revisions
+export BABEL_STARBENCH_ROOT=/data/starbench
+python babel-ship/starbench_fetch.py                          # 626 rows + asserts
+bash babel-ship/launch_starbench_smoke.sh                     # judge GPU0, 3B GPU1
+```
+
+The smoke must end `STARBENCH_SMOKE_PASS` and its printed sample candidate
+should show `Step 1: … Step 2: …` lines. First judge start on a new GPU
+architecture (e.g. Blackwell) pays a one-time ~25 min FlashInfer MoE JIT.
+Then per model (serve judge via `serve_judge_96g.sh 0` and the generator via
+`serve_gen.sh MODEL 1 PORT`, both nohup'd):
+
+```bash
+bash babel-ship/run_starbench_prm.sh qwen-omni-3b    # smoke-gated, resume-safe
+bash babel-ship/score_starbench.sh                   # 3-selector table per budget
+```
+
+Outputs: `out/starbench_<model>_prmjudge.jsonl` (one writer per file).
+
+---
+
+# MMAU-Pro d1k judge-PRM sweeps on an external 4×A100-80GB node
 
 Self-contained kit to reproduce the judge-weighted particle-filter
 **process-reward** sweeps (`judge_epf_prm`, full budgets 1–128) on the

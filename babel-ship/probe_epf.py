@@ -373,6 +373,9 @@ def build_arm(arm, temp, max_steps, n_choices, step_token="\n\n",
                   probe_suffix=probe_suffix, probe_max_tokens=probe_max_tokens)
     if arm == "base_epf":
         return AnswerProbeEPF(use_probe=False, adaptive_ess=None, **common)
+    if arm == "base_epf_ent":  # shipped EPF with the entropy self-certainty signal
+        return AnswerProbeEPF(use_probe=False, adaptive_ess=None,
+                              **dict(common, self_certainty_signal="entropy"))
     if arm == "epf_probe":
         return AnswerProbeEPF(use_probe=True, adaptive_ess=None, **common)
     if arm == "probe_adaptive":
@@ -407,6 +410,11 @@ def build_arm(arm, temp, max_steps, n_choices, step_token="\n\n",
     if arm == "judge_epf_prm":  # step-level PRM phrasing (latest step judged)
         return JudgePRMEPF(use_probe=False, adaptive_ess=None, judge_temp=1.0,
                            judge_scorer=judge_scorer, **common)
+    if arm == "judge_prm_ess":  # PRM phrasing + probe-style ESS-0.5 gate (starbench
+        # setup, user-signed 2026-09-30: preserves pool diversity per the kimi
+        # crossover analysis instead of resampling every step)
+        return JudgePRMEPF(use_probe=False, adaptive_ess=0.5, judge_temp=1.0,
+                           judge_scorer=judge_scorer, **common)
     raise ValueError(arm)
 
 
@@ -415,6 +423,11 @@ def load_records(bench, limit, audio_root=None):
         from benchmarking.mmar.loader import load_mmar_mcq
         recs = load_mmar_mcq("/u/awaheed/epf_data/mmar", subset="full",
                              audio_root=audio_root)
+    elif bench == "starbench":
+        # STAR-Bench-Perception 626-item MCQ subset; loader materializes the
+        # parquet-embedded wavs on first use (compute node only).
+        from starbench_loader import load_starbench_mcq
+        recs = load_starbench_mcq()
     elif bench == "mmau_pro_d1k":
         from benchmarking.mmau_pro.loader import load_mmau_mcq
         recs = load_mmau_mcq(
@@ -567,8 +580,43 @@ async def run(a):
     Particle.deepcopy = patched_deepcopy
 
     random.seed(a.seed); np.random.seed(a.seed % 2**32)
-    recs = load_records(a.bench, a.limit, audio_root=a.audio_root)
-    print(f"{len(recs)} records ({a.bench})", flush=True)
+    # with --ids-file, the subset filter must run BEFORE --limit, so a smoke's
+    # --limit 10 means "10 subset items", not "subset members of the first 10"
+    if a.manifest:
+        # items.jsonl manifest (pipeline-ship schema): id, question, choices,
+        # gold (letter), audio (abs paths). Overrides --bench for loading;
+        # everything downstream (prompt build, probe, selectors) is unchanged.
+        from dataclasses import dataclass
+
+        @dataclass
+        class ManifestRecord:
+            unique_id: str
+            question: str
+            choices: list
+            answer_index: int
+            audio_paths: list
+
+        recs = []
+        for line in open(a.manifest):
+            it = json.loads(line)
+            recs.append(ManifestRecord(
+                unique_id=it["id"], question=it["question"], choices=it["choices"],
+                answer_index=LETTERS.index(it["gold"]), audio_paths=it["audio"]))
+        if not a.ids_file and a.limit:
+            recs = recs[:a.limit]
+    else:
+        recs = load_records(a.bench, None if a.ids_file else a.limit,
+                            audio_root=a.audio_root)
+    if a.ids_file:  # restrict to a fixed id subset (one unique_id per line)
+        keep = {L.strip() for L in open(a.ids_file) if L.strip()}
+        recs = [r for r in recs if r.unique_id in keep]
+        if a.limit:
+            recs = recs[:a.limit]
+    if a.shard:  # "i/N" item shard (sample_cli semantics); each shard needs its OWN --jsonl
+        i, total = (int(x) for x in a.shard.split("/"))
+        recs = recs[i::total]
+    print(f"{len(recs)} records ({a.bench})"
+          + (f" [shard {a.shard}]" if a.shard else ""), flush=True)
     lm = OpenAICompatibleLanguageModel(
         endpoint=a.endpoint, api_key="NO_API_KEY", model_name=a.model_name,
         max_tokens=300, max_concurrency=-1)
@@ -709,6 +757,12 @@ def main():
     ap.add_argument("--judge-model", default="Qwen/Qwen3-Omni-30B-A3B-Instruct")
     ap.add_argument("--judge-concurrency", type=int, default=64)
     ap.add_argument("--seed", type=int, default=1234)
+    ap.add_argument("--shard", default=None,
+                    help="i/N -- take records[i::N]; each shard needs its OWN --jsonl")
+    ap.add_argument("--ids-file", default=None,
+                    help="path to a file of unique_ids (one per line); restricts the run to those items")
+    ap.add_argument("--manifest", default=None,
+                    help="items.jsonl manifest (id/question/choices/gold/audio); overrides --bench loading")
     ap.add_argument("--jsonl", required=True)
     a = ap.parse_args()
     asyncio.run(run(a))

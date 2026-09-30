@@ -10,11 +10,12 @@ model="${1:?usage: serve_gen.sh MODEL GPU_ID PORT}"
 gpu="${2:?usage: serve_gen.sh MODEL GPU_ID PORT}"
 port="${3:?usage: serve_gen.sh MODEL GPU_ID PORT}"
 
-if [[ -z "${BABEL_D1K_ROOT:-}" ]]; then
-  echo "set BABEL_D1K_ROOT to the local mmau_pro_d1k directory" >&2
+media="${BABEL_MEDIA_ROOT:-${BABEL_D1K_ROOT:-${BABEL_STARBENCH_ROOT:-}}}"
+if [[ -z "$media" ]]; then
+  echo "set BABEL_MEDIA_ROOT (or BABEL_D1K_ROOT / BABEL_STARBENCH_ROOT) to the benchmark data root" >&2
   exit 1
 fi
-media="$(realpath "$BABEL_D1K_ROOT")"
+media="$(realpath "$media")"
 repo_root="${BABEL_REPO_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 
 export CUDA_VISIBLE_DEVICES="$gpu"

@@ -36,6 +36,7 @@ METHODS = {
     9: "evidence-grounded steps (boxed)",
     10: "native inline MCQ (Mellow)",
     11: "native describe-then-answer (Mellow)",
+    12: "narrow-the-options line-steps, <=10 (P12 Step10)",
 }
 
 
@@ -149,6 +150,14 @@ def build(method: int, rec, audio_mode: str = "local-path") -> tuple[list[ChatMe
             f"{q} {format_choices_inline(rec.choices)} "
             "describe the relevant sounds in detail, then explain your reasoning, "
             "then state the correct option."
+        )]
+    elif method == 12:  # narrow-the-options line-steps (user-supplied, probe-EPF v2)
+        msgs = [sysm(_SYS), user(
+            base + "\n\nReason step by step toward the single best option, writing "
+            "each step as \"Step N: <reasoning>\" on its own line. Each step should "
+            "narrow down the options based on audio evidence -- don't just describe "
+            "the audio in order. Use no more than 10 steps. "
+            "Then end with 'Answer: <letter>'."
         )]
     else:
         raise ValueError(f"unknown method {method}")
